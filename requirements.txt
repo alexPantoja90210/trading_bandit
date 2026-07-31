@@ -1,0 +1,7 @@
+pandas
+numpy
+MetaTrader5
+plotly
+psutil
+pytest
+python-json-logger

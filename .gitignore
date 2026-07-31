@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Entorno virtual
+.venv/
+venv/
+
+# IDE
+.idea/
+
+# Datos generados en runtime (CSVs, JSON de estado, cache intradía, logs)
+src/logs.jsonl
+logs.jsonl
+src/data/
+src/logs/

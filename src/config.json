@@ -1,0 +1,132 @@
+{
+  "symbol": "XAUUSD",
+  "timeframe": "M5",
+  "lot_size": 0.01,
+  "max_daily_loss": -250.0,
+  "max_daily_trades": 15,
+  "reward_horizon": 20,
+  "sleep_time": 5,
+  "features": [
+    "close",
+    "volume",
+    "rsi",
+    "sma20",
+    "returns",
+    "volatility"
+  ],
+  "arms": [
+    "trend",
+    "mean",
+    "flat",
+    "momentum",
+    "volatility"
+  ],
+  "bandit": {
+    "prior_var": 1.0,
+    "noise_var": 1.0
+  },
+  "dashboard": {
+    "enabled": true,
+    "port": 8050
+  },
+  "trading": {
+    "enabled": true,
+    "execute": false,
+    "magic_number": 123456,
+    "slippage": 5,
+    "sl_atr_mult": 1.5,
+    "tp_atr_mult": 2.0,
+    "max_open_positions": 2,
+    "risk_per_trade": 0.005,
+    "allow_hedge": false,
+    "one_trade_per_bar": true,
+    "use_knn_edge_filter": true,
+    "knn_edge_min": 0.15
+  },
+  "rsi2": {
+    "enabled": true,
+    "dry_run": false,
+    "symbols": [
+      "NAS100",
+      "US500",
+      "US30",
+      "US2000",
+      "FRA40"
+    ],
+    "entry_rsi": 10.0,
+    "exit_rsi": 70.0,
+    "sma_trend": 200,
+    "sma_exit": 5,
+    "rsi_len": 2,
+    "atr_len": 14,
+    "stop_atr": 3.0,
+    "max_hold_days": 10,
+    "risk_per_trade": 0.005,
+    "magic": 220002,
+    "sleep": 60,
+    "max_positions": 5
+  },
+  "intraday": {
+    "enabled": true,
+    "dry_run": false,
+    "symbols": {
+      "US500": 1.0,
+      "NAS100": 1.5,
+      "US30": 1.0
+    },
+    "lookback": 14,
+    "risk_per_trade": 0.005,
+    "magic": 220003,
+    "sleep": 30
+  },
+  "stf": {
+    "enabled": true,
+    "dry_run": false,
+    "symbols": [
+      "XAUUSD",
+      "BTCUSD",
+      "ETHUSD"
+    ],
+    "ema_len": 200,
+    "donchian": 55,
+    "atr_len": 14,
+    "init_stop_atr": 2.5,
+    "chandelier_atr": 3.0,
+    "risk_per_trade": 0.005,
+    "magic": 220004,
+    "sleep": 60
+  },
+  "collector": {
+    "enabled": true,
+    "symbols": ["XAUUSD", "NAS100", "US500", "US30", "BTCUSD"],
+    "timeframe": "M5",
+    "reward_horizon": 20,
+    "sleep": 60
+  },
+  "account": {
+    "enforce": true,
+    "require_demo": true,
+    "login": 61566435,
+    "server": "Pepperstone-Demo",
+    "terminal_path": "C:\\Program Files\\Pepperstone MetaTrader 5 - Demo\\terminal64.exe"
+  },
+  "sessions": {
+    "enabled": true,
+    "utc_offset": -6,
+    "tokyo": {
+      "enabled": true,
+      "start": "18:00",
+      "end": "24:00"
+    },
+    "london": {
+      "enabled": true,
+      "start": "01:00",
+      "end": "06:00"
+    },
+    "newyork": {
+      "enabled": true,
+      "start": "06:15",
+      "end": "12:00"
+    }
+  }
+}
