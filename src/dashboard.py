@@ -179,9 +179,10 @@ ORDER_COLUMNS = [
     {"name": "Estrategia", "id": "strategy"},
     {"name": "Type", "id": "type"},
     {"name": "Volume", "id": "volume", "type": "numeric", "format": _num},
-    {"name": "Price", "id": "price", "type": "numeric", "format": _num},
+    {"name": "Apertura", "id": "open_price", "type": "numeric", "format": _num},
+    {"name": "Cierre", "id": "close_price", "type": "numeric", "format": _num},
     {"name": "Profit", "id": "profit", "type": "numeric", "format": _num},
-    {"name": "Time", "id": "time"},
+    {"name": "Cierre (hora)", "id": "time"},
 ]
 
 
@@ -227,7 +228,7 @@ app.layout = html.Div(
             "marginBottom": "20px"
         }),
 
-        html.H2("Historial de Órdenes"),
+        html.H2("Historial de Operaciones"),
         dash_table.DataTable(
             id="orders-table",
             columns=ORDER_COLUMNS,
