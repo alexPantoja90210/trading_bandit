@@ -130,3 +130,20 @@ relativo al entrar. `analyze_vix.py`, `analyze_volume.py`, `validate_vix_rsi2.py
 - **VEREDICTO**: ni VIX ni volumen construyen edge ni reducen DD de forma robusta. No se integran.
   Refuerza el muro del proyecto (la señal es el límite) y el valor de VALIDAR: el filtro VIX parecía
   bueno por terciles y se cayó al medir DD/Sharpe/robustez real.
+
+### 2026-07-31 — CADENAS DE MARKOV sobre la señal — sin edge nuevo (`markov_analysis.py`)
+Una cadena de Markov de 1er orden = modelo de DEPENDENCIA SERIAL: P(estado_sig | estado_actual).
+Test [A] direccional: estados por terciles de retorno, E[ret_sig|estado] estimado en TRAIN,
+operar signo en TEST (walk-forward + costos + test de nulidad 50 barajados).
+- **5 de 6 activos = azar**: US500·D1 (Sh +0.30 vs b&h +0.74, pctl 42%), XAUUSD·H4 (+0.36 vs b&h
+  +1.27), BTCUSD·H4 (−0.63), **US500·M30 (−2.70**, los costos intradía lo matan), EURUSD·D1 (−0.40).
+- **Único que pasa nulidad: NAS100·D1** (Sh +0.85, pctl 96%) — pero apenas iguala a b&h (+0.89) y
+  **re-descubre la MISMA reversión diaria de índices que RSI2 YA explota**. No aporta nada nuevo.
+- Matriz de transición up/down [B]: donde hay memoria es **reversión** modesta (P(up|dn)−P(up|up)
+  ~+0.03..0.06: NAS100 0.534/0.570, BTC 0.475/0.540, EURUSD 0.477/0.512); oro/US500·M30 sin memoria.
+  Es exactamente el Hurst≈0.5 visto por otra lente + la reversión que RSI2/cross-asset ya vieron.
+- **VEREDICTO**: Markov es PRÁCTICO (barato, sin sobreajuste) pero **validado NO añade edge** — la
+  dependencia serial es demasiado débil (near-random-walk) y nuestras reglas hechas a mano (RSI2
+  reversión, STF momentum) ya capturan lo poco que hay; Markov re-descubre lo mismo o pierde (intradía).
+  Rama NO muerta (baja prioridad): Markov sobre RÉGIMENES (persistencia/transición) como feature de
+  ASIGNACIÓN del meta-modelo — no para dirección; payoff esperado bajo por la casi-memorylessness.
