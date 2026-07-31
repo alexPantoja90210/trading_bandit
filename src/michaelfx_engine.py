@@ -8,6 +8,7 @@ Solo LEE mercado. La bitácora vive en data/michaelfx_journal.csv.
 """
 import os
 import csv
+import json
 from datetime import datetime, timezone, timedelta
 
 import numpy as np
@@ -18,7 +19,57 @@ from mt5_connect import ensure
 from paths import DATA_DIR
 
 JOURNAL = os.path.join(DATA_DIR, "michaelfx_journal.csv")
-WATCHLIST = ["XAUUSD", "EURUSD", "GBPUSD", "US500", "NAS100"]
+WATCHLIST_FILE = os.path.join(DATA_DIR, "michaelfx_watchlist.json")
+DEFAULT_WATCHLIST = ["XAUUSD", "EURUSD", "GBPUSD", "US500", "NAS100"]
+
+
+def load_watchlist():
+    """Watchlist editable, persistida en data/michaelfx_watchlist.json (fallback al default)."""
+    try:
+        with open(WATCHLIST_FILE, encoding="utf-8") as f:
+            wl = json.load(f)
+        if isinstance(wl, list) and wl:
+            return wl
+    except Exception:
+        pass
+    return list(DEFAULT_WATCHLIST)
+
+
+def save_watchlist(wl):
+    seen = []
+    for s in wl:
+        s = str(s).strip().upper()
+        if s and s not in seen:
+            seen.append(s)
+    with open(WATCHLIST_FILE, "w", encoding="utf-8") as f:
+        json.dump(seen, f)
+    return seen
+
+
+def add_symbol(sym):
+    """Agrega si existe en el bróker. Devuelve (ok, mensaje)."""
+    sym = str(sym or "").strip().upper()
+    if not sym:
+        return False, "escribe un símbolo"
+    mt5.symbol_select(sym, True)
+    if mt5.symbol_info(sym) is None:
+        return False, f"'{sym}' no existe en el bróker"
+    wl = load_watchlist()
+    if sym in wl:
+        return False, f"{sym} ya está en la watchlist"
+    wl.append(sym); save_watchlist(wl)
+    return True, f"✔ {sym} agregado"
+
+
+def remove_symbol(sym):
+    sym = str(sym or "").strip().upper()
+    wl = load_watchlist()
+    if sym not in wl:
+        return False, f"{sym} no está en la watchlist"
+    if len(wl) <= 1:
+        return False, "debe quedar al menos 1 símbolo"
+    wl.remove(sym); save_watchlist(wl)
+    return True, f"✔ {sym} quitado"
 
 # Sesiones en hora UTC-5 (Perú/Ecuador, sin DST) — (inicio_min, fin_min) desde medianoche
 SESSIONS_UTC5 = {"London": (90, 270), "New York": (450, 630), "Tokio": (1110, 1290)}
@@ -222,7 +273,7 @@ def stats():
 if __name__ == "__main__":
     ensure()
     print("=== Contexto MichaelFX (muestra) ===")
-    for s in WATCHLIST[:2]:
+    for s in load_watchlist()[:2]:
         c = symbol_context(s)
         print(f"\n{s}  px={c['price']}")
         for tfn in ["D1", "H4", "H1"]:

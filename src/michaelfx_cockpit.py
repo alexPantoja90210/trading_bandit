@@ -112,7 +112,7 @@ def _dd(id_, opts, ph):
 journal_form = html.Div([
     html.H4("Registrar operación"),
     html.Div([
-        html.Div([_dd("f-sym", E.WATCHLIST, "Símbolo"), _dd("f-ses", ["London", "New York", "Tokio"], "Sesión"),
+        html.Div([_dd("f-sym", E.load_watchlist(), "Símbolo"), _dd("f-ses", ["London", "New York", "Tokio"], "Sesión"),
                   _dd("f-dir", ["long", "short"], "Dirección")], style={"flex": "1", "margin": "0 4px"}),
         html.Div([_dd("f-esc", ["1", "2", "3"], "Escenario"), _dd("f-ord", ["limit", "stop"], "Tipo orden"),
                   _dd("f-obtf", ["4H", "1H", "15m"], "OB temporalidad")], style={"flex": "1", "margin": "0 4px"}),
@@ -138,6 +138,19 @@ app.layout = html.Div([
     html.Div(id="session-bar", style={"padding": "6px 10px", "backgroundColor": "#f4f4f4",
                                        "borderRadius": "6px", "marginBottom": "8px"}),
     html.Div(id="news-bar", style={"padding": "6px 10px", "marginBottom": "8px", "fontSize": "13px"}),
+    html.Div([
+        html.Span("Watchlist:  ", style={"fontWeight": "600"}),
+        dcc.Input(id="wl-add", type="text", placeholder="Símbolo (ej. GBPJPY)",
+                  style={"width": "150px", "marginRight": "4px"}),
+        html.Button("+ Agregar", id="wl-add-btn", n_clicks=0,
+                    style={"marginRight": "14px", "cursor": "pointer"}),
+        html.Div(dcc.Dropdown(id="wl-remove", placeholder="Quitar símbolo..."),
+                 style={"width": "170px", "display": "inline-block", "verticalAlign": "middle"}),
+        html.Button("− Quitar", id="wl-remove-btn", n_clicks=0,
+                    style={"marginLeft": "4px", "cursor": "pointer"}),
+        html.Span(id="wl-msg", style={"marginLeft": "12px", "color": GREEN}),
+    ], style={"padding": "6px 10px", "backgroundColor": "#fafafa", "borderRadius": "6px",
+              "marginBottom": "8px"}),
     html.H3("Contexto (sesgo · niveles · OB aprox · Fib)"),
     html.Div(id="cockpit", style={"display": "flex", "flexWrap": "wrap"}),
     html.Hr(),
@@ -160,10 +173,13 @@ app.layout = html.Div([
 @app.callback(
     [Output("session-bar", "children"), Output("news-bar", "children"),
      Output("cockpit", "children"), Output("stats-panel", "children"),
-     Output("journal-table", "data")],
-    [Input("tick", "n_intervals"), Input("f-save", "n_clicks")])
-def refresh(_n, _s):
+     Output("journal-table", "data"), Output("f-sym", "options"),
+     Output("wl-remove", "options")],
+    [Input("tick", "n_intervals"), Input("f-save", "n_clicks"),
+     Input("wl-add-btn", "n_clicks"), Input("wl-remove-btn", "n_clicks")])
+def refresh(_n, _s, _a, _r):
     ensure()
+    watchlist = E.load_watchlist()
     ss = E.current_session()
     if ss.get("en_horario"):
         sess = html.Span([html.B(f"🟢 SESIÓN {ss['activa']} ACTIVA"),
@@ -182,7 +198,7 @@ def refresh(_n, _s):
             now = datetime.utcnow()
             evs = [e for e in news_events(min_impact="High")
                    if now <= e["time"] <= now + timedelta(hours=24)
-                   and any(s in e["symbols"] for s in E.WATCHLIST)]
+                   and any(s in e["symbols"] for s in watchlist)]
             if evs:
                 items = [f"⚠ {e['time']:%H:%M}UTC [{e['ccy']}] {e['title'][:38]}" for e in evs[:6]]
                 news = html.Span(["🗞 Noticias HIGH próx. 24h: "] +
@@ -193,7 +209,7 @@ def refresh(_n, _s):
             news = f"Calendario: error ({ex})"
 
     cards = []
-    for s in E.WATCHLIST:
+    for s in watchlist:
         try:
             cards.append(cockpit_card(E.symbol_context(s)))
         except Exception as ex:
@@ -203,7 +219,23 @@ def refresh(_n, _s):
     stats_panel = _render_stats(st)
     d = E.load_trades()
     data = d.to_dict("records") if len(d) else []
-    return sess, news, cards, stats_panel, data
+    opts = [{"label": s, "value": s} for s in watchlist]
+    return sess, news, cards, stats_panel, data, opts, opts
+
+
+@app.callback(Output("wl-msg", "children"),
+    Input("wl-add-btn", "n_clicks"), State("wl-add", "value"), prevent_initial_call=True)
+def wl_add(n, sym):
+    ensure()
+    ok, msg = E.add_symbol(sym)
+    return html.Span(msg, style={"color": GREEN if ok else RED})
+
+
+@app.callback(Output("wl-msg", "children", allow_duplicate=True),
+    Input("wl-remove-btn", "n_clicks"), State("wl-remove", "value"), prevent_initial_call=True)
+def wl_remove(n, sym):
+    ok, msg = E.remove_symbol(sym)
+    return html.Span(msg, style={"color": GREEN if ok else RED})
 
 
 def _render_stats(st):
