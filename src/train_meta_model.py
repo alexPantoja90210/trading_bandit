@@ -55,12 +55,19 @@ def main():
     # Se EXCLUYEN las features de nivel crudo (close, volume, sma20 = ctx_0/1/3): no
     # son comparables entre pares y no predicen. El resto ya es scale-free → el modelo
     # es PORTABLE (estandarización global, aplicable en vivo sin stats por símbolo).
+    # Por DEFECTO solo features de build_context (ctx_*): es lo que meta_observer computa en
+    # vivo → el modelo guardado es DESPLEGABLE. Las extra (cross-asset xa_*, markov mk_*) son
+    # OPT-IN para ABLACIÓN de investigación (NO desplegar sin actualizar meta_observer).
     RAW = {"ctx_0", "ctx_1", "ctx_3"}
     ctx = [c for c in d.columns if c.startswith("ctx_") and c not in RAW]
-    # ablación: --drop-xa quita las 2 últimas ctx (features cross-asset) para comparar
-    if "--drop-xa" in sys.argv and len(ctx) >= 2:
-        ctx = ctx[:-2]
-        print("[ablación] SIN features cross-asset (ctx menos las 2 últimas)")
+    extra = []
+    if "--with-xa" in sys.argv:
+        extra += [c for c in ["xa_eq", "xa_usdx"] if c in d.columns]
+    if "--with-markov" in sys.argv:
+        extra += [c for c in ["mk_runlen", "mk_persist"] if c in d.columns]
+    ctx = ctx + extra
+    if extra:
+        print(f"[ablación] features extra INCLUIDAS: {extra}  (modelo NO desplegable tal cual)")
     edges = sorted(d["edge"].unique())
     edge_oh = pd.DataFrame({f"is_{e}": (d["edge"] == e).astype(float) for e in edges})
     X = np.hstack([d[ctx].values.astype(float), edge_oh.values])
@@ -118,7 +125,11 @@ def main():
     for (edge, fam), v in g.items():
         print(f"  {edge:5} {fam:<11} pred={v:+.3f}")
 
-    # --- guardar el modelo FINAL (entrenado con todo) para el observador live ---
+    # --- guardar el modelo FINAL solo si es DESPLEGABLE (sin extras que meta_observer no computa) ---
+    if extra:
+        print(f"\n[investigación] corrida con extras {extra} — NO se sobrescribe meta_model.json "
+              "(meta_observer no computaría esas features en vivo).")
+        return
     import json
     muA, sdA = X.mean(0), X.std(0) + 1e-9
     XA = np.hstack([np.ones((n, 1)), (X - muA) / sdA])
@@ -126,7 +137,7 @@ def main():
     with open(os.path.join(DATA_DIR, "meta_model.json"), "w", encoding="utf-8") as f:
         json.dump({"weights": wf.tolist(), "mu": muA.tolist(), "sd": sdA.tolist(),
                    "ctx_cols": ctx, "edges": edges}, f)
-    print(f"\nmodelo → data/meta_model.json  ({len(ctx)} ctx + {len(edges)} edges)")
+    print(f"\nmodelo DESPLEGABLE → data/meta_model.json  ({len(ctx)} ctx + {len(edges)} edges)")
 
 
 if __name__ == "__main__":

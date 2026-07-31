@@ -86,6 +86,36 @@ def align_xa(df):
     return bd.map(xaf["eq"]).values, bd.map(xaf["usdx"]).values
 
 
+# --- features de MARKOV sobre RÉGIMEN (persistencia + duración de racha, causal/sin lookahead).
+# Idea: no predecir dirección (near-random-walk) sino dar al meta-modelo cuán PERSISTENTE/maduro
+# es el régimen actual del regime_master → contexto de ASIGNACIÓN (pesar STF si el trend persiste).
+# Nº de features cross-asset + markov que se anexan al ctx (para nombrar columnas y ablación).
+EXTRA_COLS = ["xa_eq", "xa_usdx", "mk_runlen", "mk_persist"]
+
+
+def markov_regime_features(fam):
+    """Sobre la secuencia de familias de régimen: log(runlen) = barras seguidas en el mismo
+    régimen; persist = P(seguir en el régimen actual) estimada SOLO con transiciones pasadas
+    (matriz de transición online). Ambas causales (usables al entrar en t)."""
+    fam = np.asarray(fam, dtype=object)
+    labels = pd.unique(fam[pd.notna(fam)])
+    uniq = {f: i for i, f in enumerate(labels)}          # solo etiqueta estados (no filtra valores futuros)
+    K = max(len(uniq), 1)
+    s = np.array([uniq.get(f, -1) for f in fam])
+    n = len(s)
+    runlen = np.zeros(n); persist = np.full(n, 0.5)
+    cnt = np.zeros((K, K))
+    for t in range(n):
+        st = s[t]
+        if t > 0 and s[t - 1] >= 0 and st >= 0:
+            cnt[s[t - 1], st] += 1                        # transición realizada hasta t (conocida)
+        if st >= 0:
+            runlen[t] = runlen[t - 1] + 1 if (t > 0 and s[t - 1] == st) else 1
+            tot = cnt[st].sum()
+            persist[t] = cnt[st, st] / tot if tot > 0 else 0.5
+    return np.log1p(runlen), persist
+
+
 def stf_signal(o, h, l, c):
     """Señal STF por barra: +1 largo si close>EMA200 y rompe Donchian55 alto;
     -1 corto si close<EMA200 y rompe Donchian55 bajo; 0 si no hay ruptura."""
@@ -134,6 +164,7 @@ def collect_zarattini(sym, N, features, rows, H=6, lookback=14):
         move[m] = pd.Series(d["abscum"].values[m]).rolling(lookback).mean().shift(1).values
     cum = d["cum"].values; slot = d["slot"].values
     xa_e, xa_u = align_xa(df)
+    mk_run, mk_per = markov_regime_features(reg["family"].values)
 
     Xv = X.values; n = len(c); warm = 260; added = 0
     for t in range(warm, n - H):
@@ -163,7 +194,8 @@ def collect_zarattini(sym, N, features, rows, H=6, lookback=14):
             round(float(rr["confidence"]), 3),
         ] + [round(float(x), 5) for x in np.asarray(ctx, float)]
           + [round(float(xa_e[t]) if np.isfinite(xa_e[t]) else 0.0, 5),
-             round(float(xa_u[t]) if np.isfinite(xa_u[t]) else 0.0, 5)])
+             round(float(xa_u[t]) if np.isfinite(xa_u[t]) else 0.0, 5),
+             round(float(mk_run[t]), 5), round(float(mk_per[t]), 5)])
         added += 1
     return added
 
@@ -185,6 +217,7 @@ def collect(edge_cfg, sym, features, rows):
     sig = stf_signal(o, h, l, c) if edge_cfg["edge"] == "STF" else rsi2_signal(c)
     H = edge_cfg["H"]; n = len(c); warm = 260; added = 0
     xa_e, xa_u = align_xa(df)
+    mk_run, mk_per = markov_regime_features(reg["family"].values)
 
     Xv = X.values
     for t in range(warm, n - H):
@@ -207,7 +240,8 @@ def collect(edge_cfg, sym, features, rows):
             round(float(rr["confidence"]), 3),
         ] + [round(float(x), 5) for x in np.asarray(ctx, float)]
           + [round(float(xa_e[t]) if np.isfinite(xa_e[t]) else 0.0, 5),
-             round(float(xa_u[t]) if np.isfinite(xa_u[t]) else 0.0, 5)])
+             round(float(xa_u[t]) if np.isfinite(xa_u[t]) else 0.0, 5),
+             round(float(mk_run[t]), 5), round(float(mk_per[t]), 5)])
         added += 1
     return added
 
@@ -229,10 +263,11 @@ def main():
         print(f"  Zarat {sym:8} M30: +{a} filas")
     if not rows:
         print("sin filas"); return
-    nctx = len(rows[0]) - 10
+    nctx_total = len(rows[0]) - 10
+    n_bc = nctx_total - len(EXTRA_COLS)          # ctx de build_context (lo que meta_observer SÍ computa en vivo)
     header = (["time", "symbol", "timeframe", "edge", "signal", "reward",
                "regime_id", "family", "knn_edge", "confidence"]
-              + [f"ctx_{i}" for i in range(nctx)])
+              + [f"ctx_{i}" for i in range(n_bc)] + EXTRA_COLS)
     out = pd.DataFrame(rows, columns=header)
     out.to_csv(META_CSV, index=False)
     print(f"\n{len(out)} filas → {META_CSV}")

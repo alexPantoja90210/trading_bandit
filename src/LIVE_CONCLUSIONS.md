@@ -147,3 +147,21 @@ operar signo en TEST (walk-forward + costos + test de nulidad 50 barajados).
   reversión, STF momentum) ya capturan lo poco que hay; Markov re-descubre lo mismo o pierde (intradía).
   Rama NO muerta (baja prioridad): Markov sobre RÉGIMENES (persistencia/transición) como feature de
   ASIGNACIÓN del meta-modelo — no para dirección; payoff esperado bajo por la casi-memorylessness.
+
+### 2026-07-31 — Markov-de-RÉGIMEN como feature del meta-modelo (probado) — NO ayuda + fix de regresión
+Se probó la única rama no-muerta: 2 features de Markov sobre las familias del `regime_master`,
+causales/sin lookahead (`build_meta_dataset.markov_regime_features`): `mk_runlen`=log(barras seguidas
+en el régimen), `mk_persist`=P(seguir en el régimen actual) por matriz de transición online.
+- Regímenes muy PERSISTENTES (mk_persist media 0.92) pero corr con reward ≈0.04 (débil).
+- **Ablación (`train_meta_model.py --with-markov` vs baseline)**: NO mejora. META filtro mean
+  +0.048→+0.053 PERO tomando menos apuestas (8063→7055) → **valor total capturado BAJA 387→374 ATR**
+  (espejismo de selección: sube la media tirando apuestas netas-positivas). Sobrepeso ∝valor
+  **idéntico +0.073**; direccional 52.6%→52.4% (peor). El meta es LINEAL → la persistencia no tiene
+  efecto-principal lineal y el meta ya condiciona en el régimen actual. **Markov-de-régimen no aporta.**
+- **FIX de regresión (importante)**: `meta_observer` (vivo) arma el contexto SOLO con `build_context`
+  e indexa `ctx_cols` por posición. Al reentrenar antes con las features cross-asset ANEXADAS (pos.
+  fuera de build_context), el `meta_model.json` quedó apuntando a índices inexistentes en vivo →
+  `meta_predict` lanzaba IndexError (tragado por try/except) → **meta_observer dejó de registrar
+  forward-test en silencio**. Corregido: el modelo DESPLEGADO usa solo features `build_context`
+  (23 ctx); las extra (xa_*, mk_*) son OPT-IN de investigación (`--with-xa/--with-markov`) y NO
+  sobrescriben el modelo vivo. Verificado: modelo limpio (0 columnas no-ctx_) + meta_observer corre OK.
