@@ -1,29 +1,30 @@
 //@version=5
 // ============================================================================
-// MichaelFX — Reglas en acción (indicador de contexto para operar el sistema)
-// Dibuja: sesgo D/4H/1H, PDH/PDL, sesiones (UTC-5), Order Blocks aprox (bull/bear),
-// BOS (ruptura de estructura) y marca cuando el precio MITIGA un OB en dirección del sesgo.
-// NO ejecuta órdenes: es apoyo visual para operar MichaelFX con disciplina (no solo tu bias).
-// Copiar en TradingView → Pine Editor → Add to chart. Recomendado en 15m/5m.
+// MichaelFX — Reglas en acción (v2, decluttered)
+// Sesgo D/4H/1H (tabla legible), PDH/PDL, sesiones (UTC-5), Order Blocks aprox que se
+// BORRAN al mitigarse (precio los toca) + señal MFX una sola vez al tocar en dirección del sesgo.
+// NO ejecuta órdenes: apoyo visual para operar MichaelFX con disciplina. Mejor en 15m/5m.
 // ============================================================================
-indicator("MichaelFX — Reglas en acción", overlay=true, max_boxes_count=200, max_lines_count=100, max_labels_count=200)
+indicator("MichaelFX — Reglas en acción", overlay=true, max_boxes_count=60, max_lines_count=60, max_labels_count=60)
 
 // ---------------- Inputs ----------------
 gB = "Sesgo (Bias)"
 emaF = input.int(20, "EMA rápida", group=gB)
 emaS = input.int(50, "EMA lenta", group=gB)
 showTable = input.bool(true, "Tabla de sesgo D/4H/1H", group=gB)
+tblPos = input.string("Sup. derecha", "Posición tabla", options=["Sup. derecha", "Sup. izquierda", "Inf. derecha"], group=gB)
 
 gO = "Order Blocks (aprox)"
 showOB = input.bool(true, "Mostrar OB", group=gO)
 obStr = input.int(5, "Fuerza de ruptura (velas)", minval=2, group=gO)
 obScan = input.int(15, "Escaneo hacia atrás del OB", minval=3, group=gO)
-maxOB = input.int(4, "Máx OB por lado", minval=1, group=gO)
+maxOB = input.int(3, "Máx OB frescos por lado", minval=1, maxval=6, group=gO)
+onlyBiasOB = input.bool(true, "Solo OB a favor del sesgo 1H", group=gO)
 
 gL = "Niveles y sesiones"
 showPDHL = input.bool(true, "PDH/PDL (día anterior)", group=gL)
 showSess = input.bool(true, "Sesiones operativas (UTC-5)", group=gL)
-showSig = input.bool(true, "Marcar mitigación de OB en dirección del sesgo", group=gL)
+showSig = input.bool(true, "Señal MFX al mitigar OB en sesgo", group=gL)
 
 // ---------------- Sesgo multi-TF ----------------
 f_trend(tf) =>
@@ -36,20 +37,23 @@ biasD = f_trend("D")
 bias4 = f_trend("240")
 bias1 = f_trend("60")
 f_txt(b) => b == 1 ? "▲ ALCISTA" : b == -1 ? "▼ BAJISTA" : "► RANGO"
-f_col(b) => b == 1 ? color.new(color.green, 0) : b == -1 ? color.new(color.red, 0) : color.new(color.gray, 0)
+f_col(b) => b == 1 ? #26a69a : b == -1 ? #ef5350 : #b0b0b0
 
+// Tabla con fondo SÓLIDO oscuro para legibilidad en cualquier tema de TradingView
+var table t = na
 if showTable and barstate.islast
-    var table t = table.new(position.top_right, 2, 4, border_width=1, frame_color=color.gray, frame_width=1)
-    table.cell(t, 0, 0, "TF", bgcolor=color.gray, text_color=color.white, text_size=size.small)
-    table.cell(t, 1, 0, "Sesgo", bgcolor=color.gray, text_color=color.white, text_size=size.small)
-    table.cell(t, 0, 1, "Diario", text_size=size.small)
-    table.cell(t, 1, 1, f_txt(biasD), text_color=f_col(biasD), text_size=size.small)
-    table.cell(t, 0, 2, "4H", text_size=size.small)
-    table.cell(t, 1, 2, f_txt(bias4), text_color=f_col(bias4), text_size=size.small)
-    table.cell(t, 0, 3, "1H", text_size=size.small)
-    table.cell(t, 1, 3, f_txt(bias1), text_color=f_col(bias1), text_size=size.small)
+    pos = tblPos == "Sup. izquierda" ? position.top_left : tblPos == "Inf. derecha" ? position.bottom_right : position.top_right
+    t := table.new(pos, 2, 4, border_width=1, frame_color=#4a4a4a, frame_width=1, bgcolor=#1e222d)
+    table.cell(t, 0, 0, "TF", bgcolor=#2a2e39, text_color=color.white, text_size=size.normal)
+    table.cell(t, 1, 0, "Sesgo", bgcolor=#2a2e39, text_color=color.white, text_size=size.normal)
+    table.cell(t, 0, 1, "Diario", bgcolor=#1e222d, text_color=color.white, text_size=size.normal)
+    table.cell(t, 1, 1, f_txt(biasD), bgcolor=#1e222d, text_color=f_col(biasD), text_size=size.normal)
+    table.cell(t, 0, 2, "4H", bgcolor=#1e222d, text_color=color.white, text_size=size.normal)
+    table.cell(t, 1, 2, f_txt(bias4), bgcolor=#1e222d, text_color=f_col(bias4), text_size=size.normal)
+    table.cell(t, 0, 3, "1H", bgcolor=#1e222d, text_color=color.white, text_size=size.normal)
+    table.cell(t, 1, 3, f_txt(bias1), bgcolor=#1e222d, text_color=f_col(bias1), text_size=size.normal)
 
-// ---------------- PDH/PDL (día anterior) ----------------
+// ---------------- PDH/PDL ----------------
 pdh = request.security(syminfo.tickerid, "D", high[1], lookahead=barmerge.lookahead_on)
 pdl = request.security(syminfo.tickerid, "D", low[1], lookahead=barmerge.lookahead_on)
 var line lpdh = na
@@ -57,82 +61,94 @@ var line lpdl = na
 var label bpdh = na
 var label bpdl = na
 if showPDHL and barstate.islast
-    line.delete(lpdh), line.delete(lpdl), label.delete(bpdh), label.delete(bpdl)
-    lpdh := line.new(bar_index - 100, pdh, bar_index, pdh, color=color.new(color.blue, 0), style=line.style_dashed, extend=extend.right)
-    lpdl := line.new(bar_index - 100, pdl, bar_index, pdl, color=color.new(color.blue, 0), style=line.style_dashed, extend=extend.right)
-    bpdh := label.new(bar_index, pdh, "PDH", style=label.style_none, textcolor=color.blue, size=size.small)
-    bpdl := label.new(bar_index, pdl, "PDL", style=label.style_none, textcolor=color.blue, size=size.small)
+    line.delete(lpdh)
+    line.delete(lpdl)
+    label.delete(bpdh)
+    label.delete(bpdl)
+    lpdh := line.new(bar_index - 80, pdh, bar_index, pdh, color=#2962ff, style=line.style_dashed, extend=extend.right)
+    lpdl := line.new(bar_index - 80, pdl, bar_index, pdl, color=#2962ff, style=line.style_dashed, extend=extend.right)
+    bpdh := label.new(bar_index, pdh, "PDH", style=label.style_none, textcolor=#2962ff, size=size.small)
+    bpdl := label.new(bar_index, pdl, "PDL", style=label.style_none, textcolor=#2962ff, size=size.small)
 
 // ---------------- Sesiones (UTC-5) ----------------
 inSess(s) => not na(time(timeframe.period, s, "GMT-5"))
-london = showSess and inSess("0130-0430")
-ny     = showSess and inSess("0730-1030")
-tokyo  = showSess and inSess("1830-2130")
-bgcolor(london ? color.new(color.blue, 90) : na, title="London")
-bgcolor(ny     ? color.new(color.orange, 90) : na, title="New York")
-bgcolor(tokyo  ? color.new(color.purple, 90) : na, title="Tokio")
+bgcolor(showSess and inSess("0130-0430") ? color.new(#2962ff, 92) : na, title="London")
+bgcolor(showSess and inSess("0730-1030") ? color.new(#ff9800, 92) : na, title="New York")
+bgcolor(showSess and inSess("1830-2130") ? color.new(#9c27b0, 92) : na, title="Tokio")
 
-// ---------------- Order Blocks (aprox) ----------------
-// BOS alcista: cierre rompe el máximo de las `obStr` velas previas → OB = última vela bajista antes.
-// BOS bajista: cierre rompe el mínimo previo → OB = última vela alcista antes.
+// ---------------- Order Blocks con BORRADO por mitigación ----------------
+var box[] bBox = array.new_box()
+var float[] bTop = array.new_float()
+var float[] bBot = array.new_float()
+var box[] sBox = array.new_box()
+var float[] sTop = array.new_float()
+var float[] sBot = array.new_float()
+
 bosUp = close > ta.highest(high, obStr)[1] and close[1] <= ta.highest(high, obStr)[2]
 bosDn = close < ta.lowest(low, obStr)[1] and close[1] >= ta.lowest(low, obStr)[2]
-
-var box[] bullOB = array.new_box()
-var box[] bearOB = array.new_box()
 
 f_lastOppo(wantBear) =>
     idx = 0
     for i = 1 to obScan
-        if wantBear and close[i] < open[i]
-            idx := i
-            break
-        if not wantBear and close[i] > open[i]
+        if (wantBear and close[i] < open[i]) or (not wantBear and close[i] > open[i])
             idx := i
             break
     idx
 
-if showOB and bosUp
+// crear OB (a favor del sesgo si onlyBiasOB), con tope maxOB (borra el más viejo)
+if showOB and bosUp and (not onlyBiasOB or bias1 >= 0)
     i = f_lastOppo(true)
     if i > 0
-        b = box.new(bar_index - i, high[i], bar_index + 10, low[i], border_color=color.new(color.green, 30), bgcolor=color.new(color.green, 85), extend=extend.right)
-        array.push(bullOB, b)
-        if array.size(bullOB) > maxOB
-            box.delete(array.shift(bullOB))
-if showOB and bosDn
+        b = box.new(bar_index - i, high[i], bar_index + 8, low[i], border_color=color.new(#26a69a, 40), bgcolor=color.new(#26a69a, 88), extend=extend.right)
+        array.push(bBox, b)
+        array.push(bTop, high[i])
+        array.push(bBot, low[i])
+        if array.size(bBox) > maxOB
+            box.delete(array.shift(bBox))
+            array.shift(bTop)
+            array.shift(bBot)
+if showOB and bosDn and (not onlyBiasOB or bias1 <= 0)
     i = f_lastOppo(false)
     if i > 0
-        b = box.new(bar_index - i, high[i], bar_index + 10, low[i], border_color=color.new(color.red, 30), bgcolor=color.new(color.red, 85), extend=extend.right)
-        array.push(bearOB, b)
-        if array.size(bearOB) > maxOB
-            box.delete(array.shift(bearOB))
+        b = box.new(bar_index - i, high[i], bar_index + 8, low[i], border_color=color.new(#ef5350, 40), bgcolor=color.new(#ef5350, 88), extend=extend.right)
+        array.push(sBox, b)
+        array.push(sTop, high[i])
+        array.push(sBot, low[i])
+        if array.size(sBox) > maxOB
+            box.delete(array.shift(sBox))
+            array.shift(sTop)
+            array.shift(sBot)
 
-// BOS labels
-plotshape(showOB and bosUp, title="BOS↑", style=shape.triangleup, location=location.belowbar, color=color.new(color.green, 0), size=size.tiny)
-plotshape(showOB and bosDn, title="BOS↓", style=shape.triangledown, location=location.abovebar, color=color.new(color.red, 0), size=size.tiny)
+// mitigación: si el precio TOCA el OB → señal una vez + BORRAR el OB (declutter)
+longTap = false
+i1 = array.size(bBox) - 1
+while i1 >= 0
+    if low <= array.get(bTop, i1)
+        longTap := true
+        box.delete(array.get(bBox, i1))
+        array.remove(bBox, i1)
+        array.remove(bTop, i1)
+        array.remove(bBot, i1)
+    i1 := i1 - 1
+shortTap = false
+i2 = array.size(sBox) - 1
+while i2 >= 0
+    if high >= array.get(sBot, i2)
+        shortTap := true
+        box.delete(array.get(sBox, i2))
+        array.remove(sBox, i2)
+        array.remove(sTop, i2)
+        array.remove(sBot, i2)
+    i2 := i2 - 1
 
-// ---------------- Señal: mitigación de OB en dirección del sesgo (1H) ----------------
-f_tapBull() =>
-    tapped = false
-    if array.size(bullOB) > 0
-        for i = 0 to array.size(bullOB) - 1
-            bx = array.get(bullOB, i)
-            if low <= box.get_top(bx) and low >= box.get_bottom(bx)
-                tapped := true
-    tapped
-f_tapBear() =>
-    tapped = false
-    if array.size(bearOB) > 0
-        for i = 0 to array.size(bearOB) - 1
-            bx = array.get(bearOB, i)
-            if high >= box.get_bottom(bx) and high <= box.get_top(bx)
-                tapped := true
-    tapped
+// BOS marcas (pequeñas)
+plotshape(showOB and bosUp, title="BOS up", style=shape.triangleup, location=location.belowbar, color=color.new(#26a69a, 20), size=size.tiny)
+plotshape(showOB and bosDn, title="BOS dn", style=shape.triangledown, location=location.abovebar, color=color.new(#ef5350, 20), size=size.tiny)
 
-longSig  = showSig and bias1 == 1 and f_tapBull()
-shortSig = showSig and bias1 == -1 and f_tapBear()
-plotshape(longSig,  title="Posible LONG",  style=shape.labelup,   location=location.belowbar, color=color.new(color.green, 0), text="MFX↑", textcolor=color.white, size=size.small)
-plotshape(shortSig, title="Posible SHORT", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0),   text="MFX↓", textcolor=color.white, size=size.small)
-
-alertcondition(longSig,  title="MFX Long",  message="MichaelFX: mitigación OB alcista en sesgo alcista")
+// señal MFX (una sola vez al mitigar, en dirección del sesgo 1H)
+longSig = showSig and longTap and bias1 == 1
+shortSig = showSig and shortTap and bias1 == -1
+plotshape(longSig, title="MFX Long", style=shape.labelup, location=location.belowbar, color=#26a69a, text="MFX↑", textcolor=color.white, size=size.small)
+plotshape(shortSig, title="MFX Short", style=shape.labeldown, location=location.abovebar, color=#ef5350, text="MFX↓", textcolor=color.white, size=size.small)
+alertcondition(longSig, title="MFX Long", message="MichaelFX: mitigación OB alcista en sesgo alcista")
 alertcondition(shortSig, title="MFX Short", message="MichaelFX: mitigación OB bajista en sesgo bajista")
