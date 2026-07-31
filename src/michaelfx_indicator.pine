@@ -25,6 +25,9 @@ gL = "Niveles y sesiones"
 showPDHL = input.bool(true, "PDH/PDL (día anterior)", group=gL)
 showSess = input.bool(true, "Sesiones operativas (UTC-5)", group=gL)
 showSig = input.bool(true, "Señal MFX al mitigar OB en sesgo", group=gL)
+reqConf = input.bool(true, "Solo señales CONFIRMADAS (confluencia PDH/PDL o Fib)", group=gL)
+fibW = input.int(160, "Swing para zona Fib (velas)", minval=40, group=gL)
+cooldown = input.int(8, "Mín. velas entre señales MFX (anti-apilado)", minval=1, group=gL)
 
 // ---------------- Sesgo multi-TF ----------------
 f_trend(tf) =>
@@ -76,6 +79,23 @@ bgcolor(showSess and inSess("0130-0430") ? color.new(#2962ff, 92) : na, title="L
 bgcolor(showSess and inSess("0730-1030") ? color.new(#ff9800, 92) : na, title="New York")
 bgcolor(showSess and inSess("1830-2130") ? color.new(#9c27b0, 92) : na, title="Tokio")
 
+// ---------------- Zona Fib (descuento/premium) + confluencia ----------------
+fibHi = ta.highest(high, fibW)[1]
+fibLo = ta.lowest(low, fibW)[1]
+fibRng = fibHi - fibLo
+discLo = fibHi - 0.75 * fibRng    // zona de DESCUENTO (para longs): 61.8-75%
+discHi = fibHi - 0.618 * fibRng
+premLo = fibLo + 0.618 * fibRng   // zona PREMIUM (para shorts)
+premHi = fibLo + 0.75 * fibRng
+
+// confluencia de una zona OB [top,bot]: cerca de PDH/PDL O dentro de la banda Fib
+f_conf(top, bot, isBull) =>
+    tol = 0.0025 * close
+    lvl = isBull ? pdl : pdh
+    pdOk = not na(lvl) and (bot - tol) <= lvl and lvl <= (top + tol)
+    fibOk = isBull ? not (top < discLo or bot > discHi) : not (top < premLo or bot > premHi)
+    pdOk or fibOk
+
 // ---------------- Order Blocks con BORRADO por mitigación ----------------
 var box[] bBox = array.new_box()
 var float[] bTop = array.new_float()
@@ -124,7 +144,8 @@ longTap = false
 i1 = array.size(bBox) - 1
 while i1 >= 0
     if low <= array.get(bTop, i1)
-        longTap := true
+        if (not reqConf) or f_conf(array.get(bTop, i1), array.get(bBot, i1), true)
+            longTap := true
         box.delete(array.get(bBox, i1))
         array.remove(bBox, i1)
         array.remove(bTop, i1)
@@ -134,7 +155,8 @@ shortTap = false
 i2 = array.size(sBox) - 1
 while i2 >= 0
     if high >= array.get(sBot, i2)
-        shortTap := true
+        if (not reqConf) or f_conf(array.get(sTop, i2), array.get(sBot, i2), false)
+            shortTap := true
         box.delete(array.get(sBox, i2))
         array.remove(sBox, i2)
         array.remove(sTop, i2)
@@ -145,9 +167,17 @@ while i2 >= 0
 plotshape(showOB and bosUp, title="BOS up", style=shape.triangleup, location=location.belowbar, color=color.new(#26a69a, 20), size=size.tiny)
 plotshape(showOB and bosDn, title="BOS dn", style=shape.triangledown, location=location.abovebar, color=color.new(#ef5350, 20), size=size.tiny)
 
-// señal MFX (una sola vez al mitigar, en dirección del sesgo 1H)
-longSig = showSig and longTap and bias1 == 1
-shortSig = showSig and shortTap and bias1 == -1
+// señal MFX (al mitigar, en dirección del sesgo 1H) + COOLDOWN anti-apilado
+var int lastLong = -10000
+var int lastShort = -10000
+longRaw = showSig and longTap and bias1 == 1
+shortRaw = showSig and shortTap and bias1 == -1
+longSig = longRaw and (bar_index - lastLong) >= cooldown
+shortSig = shortRaw and (bar_index - lastShort) >= cooldown
+if longSig
+    lastLong := bar_index
+if shortSig
+    lastShort := bar_index
 plotshape(longSig, title="MFX Long", style=shape.labelup, location=location.belowbar, color=#26a69a, text="MFX↑", textcolor=color.white, size=size.small)
 plotshape(shortSig, title="MFX Short", style=shape.labeldown, location=location.abovebar, color=#ef5350, text="MFX↓", textcolor=color.white, size=size.small)
 alertcondition(longSig, title="MFX Long", message="MichaelFX: mitigación OB alcista en sesgo alcista")
