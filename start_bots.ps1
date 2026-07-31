@@ -13,7 +13,7 @@ $scripts = @(
   "dashboard.py", "main_live_v2.py",
   "rsi2_live.py", "intraday_live.py", "stf_live.py",
   "learning_collector.py", "meta_observer.py", "meta_retrain.py",
-  "data_backup.py"
+  "data_backup.py", "michaelfx_cockpit.py"
 )
 
 foreach ($s in $scripts) {
