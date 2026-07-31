@@ -57,8 +57,33 @@ def _in_session(dt_utc):
     return any(a <= mins <= z for a, z in SESS_UTC5.values())
 
 
+def _equal_levels(df, k=3, tol=0.0012, maxage=40):
+    """Liquidez (mejora #2): nivel de equal-lows (eql) y equal-highs (eqh) por barra, causal.
+    Un cluster de >=2 pivotes al mismo nivel (dentro de tol) = pool de stops = liquidez.
+    El nivel EXPIRA tras `maxage` barras sin renovarse (solo cuenta liquidez RECIENTE)."""
+    h = df["high"].values; l = df["low"].values; n = len(df)
+    eql = np.full(n, np.nan); eqh = np.full(n, np.nan)
+    rlows = []; rhighs = []; cur_l = np.nan; cur_h = np.nan
+    last_l = -10 ** 9; last_h = -10 ** 9
+    for t in range(2 * k, n):
+        pv = t - k                                    # pivote confirmado k barras después
+        if l[pv] == np.min(l[pv - k:pv + k + 1]):
+            for _, pp in rlows[-8:]:
+                if abs(l[pv] - pp) / pp < tol:
+                    cur_l = (l[pv] + pp) / 2.0; last_l = t
+            rlows.append((pv, l[pv]))
+        if h[pv] == np.max(h[pv - k:pv + k + 1]):
+            for _, pp in rhighs[-8:]:
+                if abs(h[pv] - pp) / pp < tol:
+                    cur_h = (h[pv] + pp) / 2.0; last_h = t
+            rhighs.append((pv, h[pv]))
+        eql[t] = cur_l if (t - last_l) <= maxage else np.nan
+        eqh[t] = cur_h if (t - last_h) <= maxage else np.nan
+    return eql, eqh
+
+
 def _confluence_maps(df):
-    """PDH/PDL por barra (día previo) + banda Fib de descuento/premium (61.8-75% del swing rodante)."""
+    """PDH/PDL + banda Fib descuento/premium + niveles de LIQUIDEZ (equal highs/lows)."""
     d = df.copy()
     d["date"] = d["dt"].dt.date
     dhl = d.groupby("date").agg(dh=("high", "max"), dl=("low", "min"))
@@ -69,24 +94,36 @@ def _confluence_maps(df):
     hi = pd.Series(df["high"]).rolling(W).max().shift(1).values
     lo = pd.Series(df["low"]).rolling(W).min().shift(1).values
     rng = hi - lo
+    eql, eqh = _equal_levels(df)
     return {"pdh": pdh, "pdl": pdl,
-            "disc_hi": hi - 0.618*rng, "disc_lo": hi - 0.75*rng,   # zona descuento (longs)
-            "prem_lo": lo + 0.618*rng, "prem_hi": lo + 0.75*rng}   # zona premium (shorts)
+            "disc_hi": hi - 0.618*rng, "disc_lo": hi - 0.75*rng,
+            "prem_lo": lo + 0.618*rng, "prem_hi": lo + 0.75*rng,
+            "eql": eql, "eqh": eqh}
 
 
 def _has_confluence(kind, side, top, bot, t, cm, price):
     if kind is None:
         return True
     tol = 0.0025 * price
+    # PDH/PDL
+    lvl = cm["pdl"][t] if side == 1 else cm["pdh"][t]
+    pdOk = np.isfinite(lvl) and (bot - tol) <= lvl <= (top + tol)
+    # Fibonacci (descuento longs / premium shorts)
+    if side == 1:
+        fibOk = np.isfinite(cm["disc_lo"][t]) and not (top < cm["disc_lo"][t] or bot > cm["disc_hi"][t])
+    else:
+        fibOk = np.isfinite(cm["prem_lo"][t]) and not (top < cm["prem_lo"][t] or bot > cm["prem_hi"][t])
+    # Liquidez (equal lows para longs / equal highs para shorts)
+    liq = cm["eql"][t] if side == 1 else cm["eqh"][t]
+    liqOk = np.isfinite(liq) and (bot - tol) <= liq <= (top + tol)
     if kind == "pdhl":
-        lvl = cm["pdl"][t] if side == 1 else cm["pdh"][t]
-        return np.isfinite(lvl) and (bot - tol) <= lvl <= (top + tol)
+        return pdOk
     if kind == "fib":
-        if side == 1:
-            dl, dh = cm["disc_lo"][t], cm["disc_hi"][t]
-            return np.isfinite(dl) and not (top < dl or bot > dh)   # solapa banda descuento
-        pl, ph = cm["prem_lo"][t], cm["prem_hi"][t]
-        return np.isfinite(pl) and not (top < pl or bot > ph)
+        return fibOk
+    if kind == "liq":
+        return liqOk
+    if kind == "any":
+        return pdOk or fibOk or liqOk
     return True
 
 
@@ -173,13 +210,13 @@ def summarize(trades):
                 expectancy=round(R.mean(), 2), totalR=round(R.sum(), 1))
 
 
-# Todas con cap 2/día TOTAL (aplicado en main). confluence: None | "pdhl" | "fib" (mejora #1).
+# Cap 2/día TOTAL (en main). confluence: None|"pdhl"|"fib"(mejora #1)|"liq"|"any"(mejora #2).
 BRANCHES = {
-    "A_baseline":   dict(use_bias=True,  bias_tf="H1", rr=2.5, sessions=True,  ob_str=5, buf=0.1, max_hold=48, confluence=None),
-    "C_no_session": dict(use_bias=True,  bias_tf="H1", rr=2.5, sessions=False, ob_str=5, buf=0.1, max_hold=48, confluence=None),
-    "F_conf_pdhl":  dict(use_bias=True,  bias_tf="H1", rr=2.5, sessions=True,  ob_str=5, buf=0.1, max_hold=48, confluence="pdhl"),
-    "G_conf_fib":   dict(use_bias=True,  bias_tf="H1", rr=2.5, sessions=True,  ob_str=5, buf=0.1, max_hold=48, confluence="fib"),
-    "H_conf_both":  dict(use_bias=True,  bias_tf="H1", rr=5.0, sessions=True,  ob_str=5, buf=0.1, max_hold=48, confluence="pdhl"),
+    "A_baseline":  dict(use_bias=True, bias_tf="H1", rr=2.5, sessions=True, ob_str=5, buf=0.1, max_hold=48, confluence=None),
+    "F_conf_pdhl": dict(use_bias=True, bias_tf="H1", rr=2.5, sessions=True, ob_str=5, buf=0.1, max_hold=48, confluence="pdhl"),
+    "G_conf_fib":  dict(use_bias=True, bias_tf="H1", rr=2.5, sessions=True, ob_str=5, buf=0.1, max_hold=48, confluence="fib"),
+    "I_conf_liq":  dict(use_bias=True, bias_tf="H1", rr=2.5, sessions=True, ob_str=5, buf=0.1, max_hold=48, confluence="liq"),
+    "J_conf_any":  dict(use_bias=True, bias_tf="H1", rr=2.5, sessions=True, ob_str=5, buf=0.1, max_hold=48, confluence="any"),
 }
 
 

@@ -89,4 +89,31 @@ Cambios: (a) máx 2 entradas/día TOTAL across pares (antes 2/par); (b) branches
    estas branches mecánicas (el objetivo real del ciclo).
 3. Posible mejora #2: confluencia de **liquidez** (máximos/mínimos iguales) — aún no implementada.
 
+### 2026-07 (mes 1, v3 — MEJORA #2: confluencia de LIQUIDEZ) — FALLÓ
+Mejora #2: confluencia de liquidez = OB que coincide con **equal highs/lows** (pools de stops).
+Branch I_conf_liq (solo liquidez) y J_conf_any (PDH/PDL o Fib o liquidez). `_equal_levels` detecta
+clusters de ≥2 pivotes al mismo nivel (tol 0.12%), con expiración a 40 barras (solo liquidez reciente).
+
+| Branch | pre-cap → cap | winrate | expectancy R | ΣR |
+|---|---|---|---|---|
+| G_conf_fib (mejora #1) | 16 → 15 | 73% | **+1.40** | +21.0 |
+| F_conf_pdhl (mejora #1) | 37 → 24 | 54% | +0.77 | +18.4 |
+| A_baseline | 340 → 46 | 26% | −0.13 | −5.9 |
+| **J_conf_any** | 283 → 46 | 24% | **−0.18** | −8.1 |
+| **I_conf_liq (mejora #2)** | 282 → 46 | 22% | **−0.25** | −11.6 |
+
+**Lectura — mejora #2 NO ayuda (y robusto):**
+- **No es selectiva**: I_conf_liq deja 282 candidatas (casi como sin filtro, 340). En M15 los equal
+  highs/lows se forman **constantemente** → casi cualquier OB queda "cerca" de liquidez → el filtro
+  no discrimina (a diferencia de Fib, que exige zona de retroceso específica: 16 candidatas).
+- Corregir el arrastre del nivel (expira a 40 barras) **no cambió nada** (idéntico) → la liquidez es
+  ubicua en M15, no un filtro útil ahí.
+- **Expectancy negativa** (−0.25). J_conf_any la contamina (hereda la baja selectividad de liq).
+- **NO se tuneó el maxage hasta forzar positivo** (sería overfitting). Veredicto: descartada como está.
+- **Sigue ganando Fib (mejora #1)** — pero recordar: G n=15 en 1 mes = aún NO validado; se acumula.
+
+**Acciones (mes 2):** liquidez confluence descartada en M15 (quizá útil en TF mayor 1H/4H, no probado).
+Seguir con Fib/PDH-PDL como confluencias candidatas y **acumular meses** antes de adoptar. Poblar el
+journal discrecional para el contraste humano vs mecánico.
+
 <!-- Añadir cada mes: tabla de branches + lectura + acciones. Nunca adoptar por 1 mes. -->
