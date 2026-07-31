@@ -150,6 +150,13 @@ paper es 1-min). **Primer pase positivo y robusto**:
 - **Walk-forward (train 252d → test 63d, N out-of-sample): PASA.** OOS US500 Sharpe 0.81 / PF 1.20 / 3-4 años; NAS100
   Sharpe 0.81 / PF 1.21 / 3-4 años. Degradación normal (1.1→0.81), no colapso → edge real, no ajuste. US500 elige N=1.0
   estable; NAS100 N más disperso (a vigilar). 2026 flojo en ambos.
+- **Extensión sesión EUROPEA (`intraday_eu_test.py`, 2026-07-31):** ¿el momentum intradía funciona en Europa? Sesión DAX/CAC
+  detectada empíricamente (apertura 10:00 broker = 09:00 CET; ~17 slots M30 hasta 18:00). Resultado con el mismo walk-forward:
+  - **GER40 (DAX): edge REAL** — OOS Sharpe **+0.60**, PF 1.15, **4/4 años positivos**, N=2.0 (selectivo, ~0.5 trades/día).
+    Más débil que el US (0.60 vs 0.81) pero robusto. Mecanismo: el DAX recibe **doble catalizador** (apertura EU + apertura US a las 16:30 broker).
+  - **FRA40 (CAC): SIN edge** — negativo en todo el barrido, WF Sharpe −0.14, 2/7 años → **descartado con datos**.
+  - Diversificación temporal: sesión DAX ≈ **1-9 AM hora de México** (antes de la sesión US) → llenaría la mañana temprana.
+  - **Pendiente**: soporte multi-sesión en `intraday_live` (hoy US-específico) — ver `MULTISESSION_DESIGN.md`. Agregar DAX cuando esté.
 - **Demo-live**: `intraday_live.py` (ver comportamiento abajo). Opcional: cross-check M15, seguir acumulando M30 en el cache.
 
 ### Ejecutor demo-live #2 — `intraday_live.py` (comportamiento)
