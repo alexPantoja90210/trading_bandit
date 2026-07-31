@@ -188,3 +188,17 @@ en el régimen), `mk_persist`=P(seguir en el régimen actual) por matriz de tran
   No cointegran de verdad (spreads desanclados/trending). Rechazado.
 - **VEREDICTO**: Eigen-Trading no aplica (falta amplitud), pero su diagnóstico ("residuos driftean")
   llevó al único hallazgo POSITIVO: momentum cross-seccional de equity, real pero modesto y descorrel.
+
+### 2026-07-31 — Quadratic Regularization + Latent Manifold Learning — NO aplican (`reg_manifold_test.py`)
+Negativo de TIPO DISTINTO: no es test de input sino de COMPLEJIDAD DEL MODELO.
+- **Quadratic reg (L2/Ridge, ya en uso en el meta)**: barrido LAM 0.5→512 en walk-forward → OOS
+  **PLANO** (META mean +0.048→+0.051, Sharpe +0.061→+0.065). No sobreajusta (si lo hiciera, LAM bajo
+  sería mucho peor) → LAM=8 bien; más regularización solo encoge hacia 1/N (+0.003, marginal). La
+  regularización NO es palanca de edge, hace su trabajo defensivo.
+- **Latent manifold (kNN local/no-lineal vs Ridge lineal)**: kNN full mean +0.036 y kNN sobre PCA-3/5/8D
+  (+0.044/+0.038/+0.034) **TODOS PEORES que Ridge lineal (+0.048)**. No hay estructura no-lineal
+  explotable; el modelo más complejo agrega ruido. Contexto redundante (8/23 dims = 71% var) → se puede
+  comprimir pero comprimir no mejora predecir.
+- **VEREDICTO**: ninguno aplica para edge. **Cierra la puerta a "la solución es ML más fino"**: el
+  cuello de botella NO es que el modelo sea demasiado simple (un modelo no-lineal rinde PEOR) ni que
+  falte regularización (ya óptima) — es la SEÑAL. El muro confirmado también desde el lado del modelado.
