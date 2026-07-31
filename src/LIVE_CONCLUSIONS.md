@@ -217,7 +217,13 @@ flat al cierre.
 - US500 (−0.18), US30 (−0.21) PIERDEN; GER40 (+0.72, PF 1.13) marginal (nulidad 87%, no pasa 95).
 - **CAVEATS**: muestra corta 2.2a (sin robustez multi-régimen); 2026Q2-Q3 negativos (posible decaimiento);
   1/4 instrumentos (riesgo de comparación múltiple, mitigado por coincidir con el instrumento del paper).
-- **VEREDICTO: candidato PROMETEDOR, no edge confirmado.** Mejor resultado nuevo de la sesión (junto al
-  momentum cross-seccional). Siguiente paso: forward-test en demo (como se hizo con STF/RSI2/Zarattini)
-  + validar sensibilidad de parámetros (ventana OR, target tipo 10R del paper) antes de cualquier
-  despliegue. Scalping literal queda descartado por infra; ORB intradía es la vía viable.
+- **VALIDACIÓN DE PARÁMETROS (`orb_validate.py`) — NO SOBREVIVE OOS:** grid ventana-OR × target →
+  edge concentrado en OR=1 barra (coherente con el paper) e invariante al target (EOD≈10R). PERO el
+  **split cronológico 60/40 lo tumba: TRAIN Sharpe +2.17 / PF 1.57 vs TEST (últimos ~0.9a) Sharpe −0.25
+  / PF 0.96 (negativo).** Cross-check M5 (solo período reciente) también negativo (Sharpe −0.38). La
+  nulidad (98%) pasa pero sobre el full-sample dominado por el período bueno → no salva la
+  no-estacionariedad. El +1.37 full-sample era espejismo del período temprano.
+- **VEREDICTO FINAL: NO CLASIFICA.** Por nuestro estándar (edge debe ser positivo OOS: Zarat M30 +0.81,
+  RSI2/STF positivos) el ORB NAS100 da OOS −0.25 → se descarta como candidato de despliegue. Mismo juez
+  que hundió a las SMC (PF 4.7→0.85). Scalping literal ya estaba descartado por infra. Aprendizaje: la
+  validación OOS (barata) evitó un forward-test de semanas sobre una señal ya muerta en el período reciente.
