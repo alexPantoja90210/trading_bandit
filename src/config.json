@@ -98,7 +98,7 @@
   },
   "collector": {
     "enabled": true,
-    "symbols": ["XAUUSD", "NAS100", "US500", "US30", "BTCUSD"],
+    "symbols": ["XAUUSD", "XAGUSD", "BTCUSD", "ETHUSD", "US500", "NAS100", "GER40", "EURUSD", "WTOIL-PERP"],
     "timeframe": "M5",
     "reward_horizon": 20,
     "sleep": 60

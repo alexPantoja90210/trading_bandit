@@ -47,6 +47,44 @@ EDGES = [
      "symbols": ["NAS100", "US500", "US30", "US2000", "FRA40"]},
 ]
 
+# --- contexto CROSS-ASSET (intermarket): retorno del día PREVIO del complejo de equity
+# (US500/NAS100/GER40, z-compuesto) y del dólar (USDX). Es la señal lead-lag validada en
+# cross_asset.py/backtest_cross_asset.py: fina y no-estacionaria sola, pero como CONTEXTO
+# deja que el meta-modelo decida cuándo pesa. Shift(1) = sin lookahead (valor ya cerrado).
+_XA_EQUITY = ["US500", "NAS100", "GER40"]
+_XA_CACHE = None
+
+
+def cross_asset_daily():
+    """DataFrame indexado por fecha con [eq, usdx] = retorno del complejo equity (z) y del
+    USDX, ya desplazado 1 día (el valor conocido ANTES de la barra → sin lookahead)."""
+    global _XA_CACHE
+    if _XA_CACHE is not None:
+        return _XA_CACHE
+    ser = {}
+    for s in _XA_EQUITY + ["USDX"]:
+        mt5.symbol_select(s, True)
+        r = mt5.copy_rates_from_pos(s, mt5.TIMEFRAME_D1, 0, 6000)
+        if r is None or len(r) < 300:
+            continue
+        df = pd.DataFrame(r); df["date"] = pd.to_datetime(df["time"], unit="s").dt.date
+        ser[s] = pd.Series(df["close"].pct_change().values, index=df["date"])
+    R = pd.DataFrame(ser).dropna(how="all")
+    eq = R[_XA_EQUITY]
+    eq_z = ((eq - eq.mean()) / eq.std()).mean(axis=1)          # complejo equity estandarizado
+    xa = pd.DataFrame({"eq": eq_z, "usdx": R["USDX"]}).shift(1)  # día previo (conocido)
+    _XA_CACHE = xa
+    return xa
+
+
+def align_xa(df):
+    """Alinea [eq, usdx] cross-asset a las barras de df por fecha (ffill entre días)."""
+    xa = cross_asset_daily()
+    bd = pd.to_datetime(df["time"]).dt.date
+    uni = pd.Index(sorted(set(xa.index) | set(bd)))
+    xaf = xa.reindex(uni).ffill()
+    return bd.map(xaf["eq"]).values, bd.map(xaf["usdx"]).values
+
 
 def stf_signal(o, h, l, c):
     """Señal STF por barra: +1 largo si close>EMA200 y rompe Donchian55 alto;
@@ -95,6 +133,7 @@ def collect_zarattini(sym, N, features, rows, H=6, lookback=14):
         m = (d["slot"] == sl).values
         move[m] = pd.Series(d["abscum"].values[m]).rolling(lookback).mean().shift(1).values
     cum = d["cum"].values; slot = d["slot"].values
+    xa_e, xa_u = align_xa(df)
 
     Xv = X.values; n = len(c); warm = 260; added = 0
     for t in range(warm, n - H):
@@ -122,7 +161,9 @@ def collect_zarattini(sym, N, features, rows, H=6, lookback=14):
             df["time"].iloc[t].isoformat(), sym, "M30", "Zarattini", int(sig), round(reward, 4),
             int(rr["id"]), str(rr["family"]), round(float(rr["knn_edge"]), 3),
             round(float(rr["confidence"]), 3),
-        ] + [round(float(x), 5) for x in np.asarray(ctx, float)])
+        ] + [round(float(x), 5) for x in np.asarray(ctx, float)]
+          + [round(float(xa_e[t]) if np.isfinite(xa_e[t]) else 0.0, 5),
+             round(float(xa_u[t]) if np.isfinite(xa_u[t]) else 0.0, 5)])
         added += 1
     return added
 
@@ -143,6 +184,7 @@ def collect(edge_cfg, sym, features, rows):
 
     sig = stf_signal(o, h, l, c) if edge_cfg["edge"] == "STF" else rsi2_signal(c)
     H = edge_cfg["H"]; n = len(c); warm = 260; added = 0
+    xa_e, xa_u = align_xa(df)
 
     Xv = X.values
     for t in range(warm, n - H):
@@ -163,7 +205,9 @@ def collect(edge_cfg, sym, features, rows):
             int(sig[t]), round(reward, 4),
             int(rr["id"]), str(rr["family"]), round(float(rr["knn_edge"]), 3),
             round(float(rr["confidence"]), 3),
-        ] + [round(float(x), 5) for x in np.asarray(ctx, float)])
+        ] + [round(float(x), 5) for x in np.asarray(ctx, float)]
+          + [round(float(xa_e[t]) if np.isfinite(xa_e[t]) else 0.0, 5),
+             round(float(xa_u[t]) if np.isfinite(xa_u[t]) else 0.0, 5)])
         added += 1
     return added
 

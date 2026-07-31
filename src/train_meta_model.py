@@ -57,6 +57,10 @@ def main():
     # es PORTABLE (estandarización global, aplicable en vivo sin stats por símbolo).
     RAW = {"ctx_0", "ctx_1", "ctx_3"}
     ctx = [c for c in d.columns if c.startswith("ctx_") and c not in RAW]
+    # ablación: --drop-xa quita las 2 últimas ctx (features cross-asset) para comparar
+    if "--drop-xa" in sys.argv and len(ctx) >= 2:
+        ctx = ctx[:-2]
+        print("[ablación] SIN features cross-asset (ctx menos las 2 últimas)")
     edges = sorted(d["edge"].unique())
     edge_oh = pd.DataFrame({f"is_{e}": (d["edge"] == e).astype(float) for e in edges})
     X = np.hstack([d[ctx].values.astype(float), edge_oh.values])

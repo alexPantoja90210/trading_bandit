@@ -64,4 +64,50 @@ Validé candidatos antes de agregar (fiel a la metodología). Añadidos en vivo 
 - Estado: 8 componentes arriba y funcionales (bandit, RSI2, intradía, STF, dashboard, collector, meta_observer, meta_retrain), conectados a la demo. Data del meta-pipeline intacta en disco.
 - **Para levantar manual:** ejecutar `start_bots.ps1`. **Para desactivar auto-arranque:** borrar la entrada `TradingBots` de HKCU\...\Run.
 
-<!-- Añadir aquí cada revisión: fecha, nº trades acumulados, PF/wr vivo vs backtest, y veredicto parcial. -->
+### 2026-07-31 — investigación CROSS-ASSET / intermarket (búsqueda de alpha nuevo)
+Motivación: el muro del proyecto es la SEÑAL, no el algoritmo → buscar inputs genuinamente
+predictivos. Se eligió la vía **cross-asset / intermarket**: que el movimiento PASADO de un
+activo prediga el FUTURO de otro (lead-lag = operable; la correlación contemporánea no lo es).
+- **Predictores disponibles en el bróker**: USDX (dólar), VIX (miedo), CN50 (China) + universo propio.
+- **`cross_asset.py`** — matriz lead-lag D1 (corr A[t]→B[t+1], t-stat). Hallazgo dominante:
+  **reversión de corto plazo del complejo de equity** (US500/NAS100/GER40 se predicen entre sí
+  NEGATIVO, corr ~−0.13, t ~−7 sobre ~2500 días) con **spillover al dólar** (equity↑ hoy → USDX↓ /
+  EURUSD↑ mañana). La reversión equity↔equity **solapa con RSI(2)**; lo NUEVO y cross-clase es
+  **equity(hoy) → FX(mañana)**.
+- **`backtest_cross_asset.py`** — backtest de la señal nueva `sign(equity hoy) → EURUSD mañana`
+  (2015-2026, ~2839 días, costo ~0.6 pip/vuelta):
+  - Bruto Sharpe **+0.52** / neto **+0.33**, PF 1.06, wr 50.6%.
+  - **Test de nulidad (200 barajados): percentil 96 → PASA >95%.** La señal NO es casualidad.
+  - PERO **no robusta año a año**: 6 verdes / 6 rojos, y **2023-24-25 en rojo** (decaimiento /
+    no-estacionaria). Años fuertes 2018 (+2.61) y 2022 (+2.04).
+- **Veredicto**: señal cross-asset **genuina pero fina y no-estacionaria** (patrón del proyecto).
+  **No para desplegar sola.** Uso correcto: **feature del meta-modelo** (contexto cross-asset para
+  que el value decida cuándo pesa). Se agregaron 2 features al `build_meta_dataset.py`:
+  `ctx` extra = retorno del complejo equity (z) y del USDX del **día previo** (sin lookahead).
+- **Ablación meta (con vs sin cross-asset, `train_meta_model.py --drop-xa`)**: **NO mejora**.
+  META filtro mean +0.049 vs +0.048, Sharpe +0.06 = +0.06, dirección 52.7% vs 52.6% → despreciable.
+  Coherente: la señal cross-asset predice **EURUSD/dólar**, pero los edges del meta operan
+  **oro/BTC/índices** → el contexto equity/USDX no ayuda a asignar entre STF/RSI2/Zarattini. Las 2
+  features quedan en el pipeline (inocuas) pero **no aportan**. Para explotar el cross-asset habría que
+  **meter EURUSD como edge propio** en el meta — pendiente, baja prioridad (señal decayendo). El muro
+  sigue siendo la señal.
+
+### 2026-07-31 — backtest de NOTICIAS sobre el intradía Zarattini (`backtest_news.py`)
+Pregunta: ¿un filtro de blackout de noticias mejora la estrategia? (motivación: "prevenir operar
+en momentos de noticias"). Método sin calendario scrapeado: eventos deterministas — **NFP** (1er
+viernes, 8:30 ET, exacto) y **FOMC** (anuncio 14:00 ET, fechas conocidas 2021-2026) — partiendo el
+P&L DIARIO de la estrategia (N validado por símbolo) por tipo de día. Data M30 ~2022-2026.
+- **Hallazgo (contra-intuitivo): los días-evento son MEJORES que los normales** en US500/NAS100/US30
+  (Sharpe días-evento ~2.3-2.5 vs ~0.8-1.0 normales). **NFP es un viento a favor fuerte**
+  (Sharpe **+2.57 NAS100, +4.78 US30** esos días): el momentum cabalga el movimiento direccional
+  pre-apertura del NFP. **La noticia ES donde vive el edge** para una estrategia de momentum.
+- **El filtro (saltar días-evento) EMPEORA los 3** (ΔSharpe −0.17/−0.17/−0.07): tira los mejores días.
+- **Excepción FOMC** (14:00 ET intra-sesión = whipsaw): US500 Sh −0.60, US30 Sh −2.91 **pero
+  NAS100 Sh +1.95** → signo MIXTO por símbolo, n=34 → **no robusto** para un filtro FOMC-only.
+- Robustez por año: P&L en días-evento positivo en la mayoría (US500 5/5, NAS100 4/5, US30 4/5).
+- **VEREDICTO: filtro de noticias RECHAZADO como regla general** — resta rendimiento. La intuición
+  "no operar en noticias" está **al revés** para momentum. No se integra a `intraday_live` ni al
+  `collector`. `news_calendar.py` queda como infra disponible (blackout util para estrategias de
+  REVERSIÓN como RSI2, no probado), pero el intradía NO lo usa. Un test más fino (saltar solo la
+  ventana ±X min del anuncio FOMC, no el día entero) queda pendiente y de baja prioridad (efecto
+  mixto por símbolo). Confirma el ethos: probar antes de creer; aquí la intuición común era falsa.
