@@ -202,3 +202,22 @@ Negativo de TIPO DISTINTO: no es test de input sino de COMPLEJIDAD DEL MODELO.
 - **VEREDICTO**: ninguno aplica para edge. **Cierra la puerta a "la solución es ML más fino"**: el
   cuello de botella NO es que el modelo sea demasiado simple (un modelo no-lineal rinde PEOR) ni que
   falte regularización (ya óptima) — es la SEÑAL. El muro confirmado también desde el lado del modelado.
+
+### 2026-07-31 — "Momentum scalping" → ORB M15: NAS100 candidato PROMETEDOR (`orb_scalp.py`)
+Investigación de base sólida para momentum scalping. **Realidad de infra**: scalping sub-minuto vive de
+microestructura/order-flow → necesita L2/DOM/baja latencia, NO accesible en CFD retail; además M5 solo
+~0.7a de data, M1/tick sin data. La versión con soporte documentado Y testeable es el **Opening Range
+Breakout (Zarattini & Grossman 2023, QQQ/TQQQ 20a neto de comisiones; Crabel 1990)**, primo del Zarattini
+de bandas que ya corremos. Probado en **M15** (TF más fino usable, ~2.2a): OR = 1ª barra de sesión,
+dirección = signo de esa barra (filtro Zarattini), entrada al romper el extremo, stop = extremo opuesto,
+flat al cierre.
+- **NAS100 (US): Sharpe +1.37, PF 1.30, avgR +0.13, 7/10 trim+, cost-robusto (PF 1.12 a 5×), nulidad
+  percentil 97 (PASA), bate a ambos-lados (1.30 vs 1.16).** Es el ÚNICO que pasa — y es el esperado por
+  teoría (NAS100 = QQQ del paper), no un ganador al azar.
+- US500 (−0.18), US30 (−0.21) PIERDEN; GER40 (+0.72, PF 1.13) marginal (nulidad 87%, no pasa 95).
+- **CAVEATS**: muestra corta 2.2a (sin robustez multi-régimen); 2026Q2-Q3 negativos (posible decaimiento);
+  1/4 instrumentos (riesgo de comparación múltiple, mitigado por coincidir con el instrumento del paper).
+- **VEREDICTO: candidato PROMETEDOR, no edge confirmado.** Mejor resultado nuevo de la sesión (junto al
+  momentum cross-seccional). Siguiente paso: forward-test en demo (como se hizo con STF/RSI2/Zarattini)
+  + validar sensibilidad de parámetros (ventana OR, target tipo 10R del paper) antes de cualquier
+  despliegue. Scalping literal queda descartado por infra; ORB intradía es la vía viable.
