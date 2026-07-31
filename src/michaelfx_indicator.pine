@@ -18,7 +18,7 @@ gO = "Order Blocks (aprox)"
 showOB = input.bool(true, "Mostrar OB", group=gO)
 obStr = input.int(5, "Fuerza de ruptura (velas)", minval=2, group=gO)
 obScan = input.int(15, "Escaneo hacia atrás del OB", minval=3, group=gO)
-maxOB = input.int(3, "Máx OB frescos por lado", minval=1, maxval=6, group=gO)
+maxOB = input.int(5, "Máx OB por lado (conserva los más CERCANOS)", minval=1, maxval=10, group=gO)
 onlyBiasOB = input.bool(true, "Solo OB a favor del sesgo 1H", group=gO)
 
 gL = "Niveles y sesiones"
@@ -115,7 +115,22 @@ f_lastOppo(wantBear) =>
             break
     idx
 
-// crear OB (a favor del sesgo si onlyBiasOB), con tope maxOB (borra el más viejo)
+// evicción del OB MÁS LEJANO al precio (conserva los cercanos aunque sean antiguos)
+f_evictFar(bx, tp, bt) =>
+    if array.size(bx) > maxOB
+        fi = 0
+        fd = 0.0
+        for k = 0 to array.size(bx) - 1
+            dd = math.abs(close - (array.get(tp, k) + array.get(bt, k)) / 2.0)
+            if dd > fd
+                fd := dd
+                fi := k
+        box.delete(array.get(bx, fi))
+        array.remove(bx, fi)
+        array.remove(tp, fi)
+        array.remove(bt, fi)
+
+// crear OB (a favor del sesgo si onlyBiasOB)
 if showOB and bosUp and (not onlyBiasOB or bias1 >= 0)
     i = f_lastOppo(true)
     if i > 0
@@ -123,10 +138,7 @@ if showOB and bosUp and (not onlyBiasOB or bias1 >= 0)
         array.push(bBox, b)
         array.push(bTop, high[i])
         array.push(bBot, low[i])
-        if array.size(bBox) > maxOB
-            box.delete(array.shift(bBox))
-            array.shift(bTop)
-            array.shift(bBot)
+        f_evictFar(bBox, bTop, bBot)
 if showOB and bosDn and (not onlyBiasOB or bias1 <= 0)
     i = f_lastOppo(false)
     if i > 0
@@ -134,18 +146,18 @@ if showOB and bosDn and (not onlyBiasOB or bias1 <= 0)
         array.push(sBox, b)
         array.push(sTop, high[i])
         array.push(sBot, low[i])
-        if array.size(sBox) > maxOB
-            box.delete(array.shift(sBox))
-            array.shift(sTop)
-            array.shift(sBot)
+        f_evictFar(sBox, sTop, sBot)
 
 // mitigación: si el precio TOCA el OB → señal una vez + BORRAR el OB (declutter)
 longTap = false
 i1 = array.size(bBox) - 1
 while i1 >= 0
-    if low <= array.get(bTop, i1)
-        if (not reqConf) or f_conf(array.get(bTop, i1), array.get(bBot, i1), true)
+    top1 = array.get(bTop, i1)
+    bot1 = array.get(bBot, i1)
+    if low <= top1 and low[1] > top1                     // entró FRESCO a la demanda
+        if (not reqConf) or f_conf(top1, bot1, true)
             longTap := true
+    if close < bot1                                       // invalidado: cierre bajo la zona
         box.delete(array.get(bBox, i1))
         array.remove(bBox, i1)
         array.remove(bTop, i1)
@@ -154,9 +166,12 @@ while i1 >= 0
 shortTap = false
 i2 = array.size(sBox) - 1
 while i2 >= 0
-    if high >= array.get(sBot, i2)
-        if (not reqConf) or f_conf(array.get(sTop, i2), array.get(sBot, i2), false)
+    top2 = array.get(sTop, i2)
+    bot2 = array.get(sBot, i2)
+    if high >= bot2 and high[1] < bot2                    // entró FRESCO a la oferta
+        if (not reqConf) or f_conf(top2, bot2, false)
             shortTap := true
+    if close > top2                                       // invalidado: cierre sobre la zona
         box.delete(array.get(sBox, i2))
         array.remove(sBox, i2)
         array.remove(sTop, i2)
