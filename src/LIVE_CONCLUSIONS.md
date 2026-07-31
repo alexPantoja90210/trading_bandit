@@ -165,3 +165,26 @@ en el régimen), `mk_persist`=P(seguir en el régimen actual) por matriz de tran
   forward-test en silencio**. Corregido: el modelo DESPLEGADO usa solo features `build_context`
   (23 ctx); las extra (xa_*, mk_*) son OPT-IN de investigación (`--with-xa/--with-markov`) y NO
   sobrescriben el modelo vivo. Verificado: modelo limpio (0 columnas no-ctx_) + meta_observer corre OK.
+
+### 2026-07-31 — EIGEN-TRADING + sus 2 ramas (stat-arb residuos, momentum X-seccional, pares)
+`eigen_trading.py`, `stat_arb_tests.py`. Motivación: "el límite es la señal" → buscar valor RELATIVO
+(no precio absoluto) vía descomposición espectral.
+- **Stat-arb de eigen-residuos (Avellaneda-Lee)** — FALLA: ret −47% (equity) / −145% (diverso),
+  PEOR que el azar (nulidad percentil 12-18%). Razón: necesita AMPLITUD (cientos de activos
+  homogéneos); con 5-6 activos el residuo lo domina el 2º factor que TRENDEA, y los residuos
+  **driftean en vez de revertir** (2020-23: NAS aplastó small-caps → shortear al ganador sangra).
+- **Absorption ratio** (fragilidad = top autovalor/total): indicador REAL de riesgo (vol del cesto
+  1.84% en fragilidad alta vs 1.00%) pero retorno medio positivo ahí (+0.079%) → como el VIX, no
+  direccional; filtrar recorta DD y retorno a la vez. Marginal.
+- **[Rama A] Momentum CROSS-SECCIONAL** (los residuos driftean → comprar ganadores relativos,
+  shortear rezagados, dollar-neutral) — **PASA (modesto)**: EQUITY L=120 Sharpe **+0.31**, PF 1.05,
+  DD −12.7%, 6/9 años, **nulidad percentil 99** (bate pesos aleatorios), cost-robusto (PF 1.05 a 3×).
+  Es **market-neutral → descorrelacionado** de nuestros edges → valor de DIVERSIFICACIÓN (no de
+  Sharpe alto). DIVERSO da más ret pero DD −61% (concentrado en melt-up BTC 2017) → suerte de régimen.
+  **Primer candidato nuevo que pasa los tests en un rato.** Pendiente: forward-test y decidir si se
+  suma como sleeve market-neutral o como edge del meta. Baja urgencia (Sharpe modesto).
+- **[Rama B] Pares cointegrados** (oro-plata, BTC-ETH, US500-NAS100) — FALLAN los tres: half-lives
+  129d/364d/1785d (demasiado lentos; operable = días-semanas), Sharpe negativo, todos nulidad=azar.
+  No cointegran de verdad (spreads desanclados/trending). Rechazado.
+- **VEREDICTO**: Eigen-Trading no aplica (falta amplitud), pero su diagnóstico ("residuos driftean")
+  llevó al único hallazgo POSITIVO: momentum cross-seccional de equity, real pero modesto y descorrel.
