@@ -111,3 +111,22 @@ P&L DIARIO de la estrategia (N validado por símbolo) por tipo de día. Data M30
   REVERSIÓN como RSI2, no probado), pero el intradía NO lo usa. Un test más fino (saltar solo la
   ventana ±X min del anuncio FOMC, no el día entero) queda pendiente y de baja prioridad (efecto
   mixto por símbolo). Confirma el ethos: probar antes de creer; aquí la intuición común era falsa.
+
+### 2026-07-31 — VIX y VOLUMEN como indicadores (¿edge o reducir DD?) — AMBOS RECHAZADOS
+Diagnóstico condicionando la recompensa (meta_dataset, ATR scale-free) por VIX y por volumen
+relativo al entrar. `analyze_vix.py`, `analyze_volume.py`, `validate_vix_rsi2.py`.
+- **VIX — no edge**: corr(reward, VIX)≈0 los 3 edges (RSI2 −0.001, STF −0.010, Zarat +0.037).
+- **VIX — no reduce DD (robusto)**: el diagnóstico por terciles sugería "RSI2 muere en VIX alto"
+  (reward +0.388 medio → +0.002 alto) pero la **validación lo tumba**: capar RSI2 solo mejora en
+  VIX≤20 (Sharpe 3.41→4.80, DD −18.6→−13.4) — **no monótono** (≤22 y ≤25 PEORES) = artefacto de
+  umbral. Y las entradas omitidas con VIX>25 (pánico profundo) **suman +12.5 ATR, mean +0.232,
+  positivas TODOS los años** → los dips en pánico profundo rebotan MÁS fuerte; capar VIX tira los
+  mejores trades. La intuición "evitar VIX alto" es FALSA para RSI2. Muestra 2020+ (COVID/2022).
+- **Volumen — no edge**: corr(reward, vol_relativo)≈0 en TODO (Zarat −0.055 a 0, RSI2 +0.01..0.07,
+  STF ~0). "Ruptura CON volumen = real" es **falso** aquí (Zarat NAS100 corr −0.055: volumen BAJO
+  rinde MÁS). tick_volume del CFD no distingue ruptura real de falsa. Único matiz: dips RSI2 con
+  volumen alto rebotan algo mejor en NAS100 (monótono +0.119→0.211) pero corr ~0.05, n chico,
+  inconsistente entre índices → no accionable.
+- **VEREDICTO**: ni VIX ni volumen construyen edge ni reducen DD de forma robusta. No se integran.
+  Refuerza el muro del proyecto (la señal es el límite) y el valor de VALIDAR: el filtro VIX parecía
+  bueno por terciles y se cayó al medir DD/Sharpe/robustez real.
