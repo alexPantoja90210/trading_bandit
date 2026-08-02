@@ -149,6 +149,35 @@ def fib_levels(sym):
     return {"dir": "retroceso de baja", "61.8%": lo + 0.618*rng, "75%": lo + 0.75*rng}
 
 
+def retracement_zone(sym, tf_name="H1", W=90):
+    """Zona de retroceso actual del precio dentro del último swing (dónde poner el OB).
+    Profundo 61.8-79% = zona más eficiente (ver MICHAELFX_ZONAS_OB.md)."""
+    df = _rates(sym, TF[tf_name], W + 15)
+    if df is None or len(df) < 30:
+        return {}
+    h = df["high"].values[-W:]; l = df["low"].values[-W:]
+    hi = float(h.max()); lo = float(l.min()); rng = hi - lo
+    if rng <= 0:
+        return {}
+    info = mt5.symbol_info(sym)
+    px = float(info.bid) if info and info.bid else float(df["close"].iloc[-1])
+    if int(np.argmax(h)) > int(np.argmin(l)):
+        d = (hi - px) / rng; side = "compra (descuento)"   # swing alcista, retroceso a la baja
+    else:
+        d = (px - lo) / rng; side = "venta (premium)"       # swing bajista, retroceso al alza
+    d = max(0.0, min(d, 1.3))
+    if d < 0.382:
+        z = "somera"
+    elif d < 0.618:
+        z = "media"
+    elif d <= 0.79:
+        z = "PROFUNDA · OB eficiente"
+    else:
+        z = "muy profunda · cerca de invalidar"
+    return {"side": side, "depth": d, "zone": z, "efficient": 0.618 <= d <= 0.79,
+            "hi": hi, "lo": lo}
+
+
 def approx_obs(sym, tf_name, price, n=200):
     """OB aproximados (SOPORTE, no exactos): última vela opuesta antes de una ruptura de
     estructura. Devuelve el OB alcista más cercano bajo el precio y el bajista sobre el precio."""
@@ -201,6 +230,7 @@ def symbol_context(sym):
     ctx["price"] = px
     ctx["levels"] = prev_day_levels(sym)
     ctx["fib"] = fib_levels(sym)
+    ctx["zona"] = retracement_zone(sym)
     ctx["ob_H1"] = approx_obs(sym, "H1", px)
     ctx["ob_M15"] = approx_obs(sym, "M15", px)
     return ctx

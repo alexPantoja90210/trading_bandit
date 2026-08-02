@@ -34,6 +34,17 @@ def _trend_color(t):
     return {"alcista": GREEN, "bajista": RED, "rango": AMBER}.get(t, GRAY)
 
 
+def _zona_line(z):
+    if not z:
+        return None
+    col = GREEN if z.get("efficient") else GRAY
+    return html.Div([
+        "Zona retroceso: ",
+        html.B(f"{z['depth']*100:.0f}% · {z['zone']}", style={"color": col}),
+        html.Span(f"  ({z['side']})", style={"color": GRAY}),
+    ], style={"fontSize": "12px", "marginTop": "2px"})
+
+
 def cockpit_card(ctx_):
     px = ctx_["price"]
     rows = []
@@ -71,6 +82,7 @@ def cockpit_card(ctx_):
                       style={"fontSize": "12px", "color": GRAY, "display": "block"}),
             html.Span(f"Fib {fib.get('dir','')}: 61.8% {fmt(fib.get('61.8%'))} · 75% {fmt(fib.get('75%'))}",
                       style={"fontSize": "12px", "color": "#5b6", "display": "block"}) if fib else None,
+            _zona_line(ctx_.get("zona", {})),
             html.Div(["OB 1H aprox: ", ob_txt(obh)], style={"fontSize": "12px", "marginTop": "3px"}),
             html.Div(["OB 15m aprox: ", ob_txt(obm)], style={"fontSize": "12px"}),
         ]),
