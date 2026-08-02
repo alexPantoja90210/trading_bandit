@@ -124,7 +124,8 @@ def _dd(id_, opts, ph):
 journal_form = html.Div([
     html.H4("Registrar operación"),
     html.Div([
-        html.Div([_dd("f-sym", E.load_watchlist(), "Símbolo"), _dd("f-ses", ["London", "New York", "Tokio"], "Sesión"),
+        html.Div([_dd("f-modo", ["vivo", "backtest"], "Modo (vivo/backtest)"),
+                  _dd("f-sym", E.load_watchlist(), "Símbolo"), _dd("f-ses", ["London", "New York", "Tokio"], "Sesión"),
                   _dd("f-dir", ["long", "short"], "Dirección")], style={"flex": "1", "margin": "0 4px"}),
         html.Div([_dd("f-esc", ["1", "2", "3"], "Escenario"), _dd("f-ord", ["limit", "stop"], "Tipo orden"),
                   _dd("f-obtf", ["4H", "1H", "15m"], "OB temporalidad")], style={"flex": "1", "margin": "0 4px"}),
@@ -171,7 +172,7 @@ app.layout = html.Div([
     html.Div(id="stats-panel"),
     html.H4("Operaciones registradas"),
     dash_table.DataTable(id="journal-table", columns=[{"name": c, "id": c} for c in
-        ["id", "fecha", "simbolo", "sesion", "direccion", "escenario", "tipo_orden", "rr_plan",
+        ["id", "fecha", "modo", "simbolo", "sesion", "direccion", "escenario", "tipo_orden", "rr_plan",
          "resultado", "r_obtenido", "respeto_reglas"]],
         style_cell={"fontSize": "12px", "padding": "3px 8px", "textAlign": "left"},
         style_header={"fontWeight": "700"}, page_size=15),
@@ -264,6 +265,8 @@ def _render_stats(st):
                      style={"color": col, "fontSize": "13px"}),
         ], style={"border": "1px solid #eee", "borderRadius": "6px", "padding": "6px", "margin": "4px", "minWidth": "190px"})
     parts = [blk("GLOBAL", st["global"])]
+    for k, v in st.get("por_modo", {}).items():
+        parts.append(blk(f"{'🔁' if k == 'backtest' else '🟢'} {k}", v))
     for k, v in st.get("por_instrumento", {}).items():
         parts.append(blk(f"📊 {k}", v))
     for k, v in st.get("por_escenario", {}).items():
@@ -277,22 +280,22 @@ def _render_stats(st):
 
 @app.callback(Output("f-msg", "children"),
     Input("f-save", "n_clicks"),
-    [State("f-sym", "value"), State("f-ses", "value"), State("f-dir", "value"),
+    [State("f-modo", "value"), State("f-sym", "value"), State("f-ses", "value"), State("f-dir", "value"),
      State("f-esc", "value"), State("f-ord", "value"), State("f-obtf", "value"),
      State("f-entrada", "value"), State("f-sl", "value"), State("f-tp", "value"),
      State("f-riesgo", "value"), State("f-res", "value"), State("f-r", "value"),
      State("f-conf", "value"), State("f-reglas", "value"), State("f-errores", "value"),
      State("f-concl", "value")], prevent_initial_call=True)
-def save_trade(n, sym, ses, dir_, esc, ordn, obtf, entrada, sl, tp, riesgo, res, r, conf, reglas, err, concl):
+def save_trade(n, modo, sym, ses, dir_, esc, ordn, obtf, entrada, sl, tp, riesgo, res, r, conf, reglas, err, concl):
     if not sym or not esc:
         return "⚠ falta al menos símbolo y escenario"
     tid = E.add_trade({
-        "simbolo": sym, "sesion": ses, "direccion": dir_, "escenario": esc, "tipo_orden": ordn,
-        "ob_tf": obtf, "entrada": entrada, "sl": sl, "tp": tp, "riesgo_pct": riesgo,
+        "modo": modo or "vivo", "simbolo": sym, "sesion": ses, "direccion": dir_, "escenario": esc,
+        "tipo_orden": ordn, "ob_tf": obtf, "entrada": entrada, "sl": sl, "tp": tp, "riesgo_pct": riesgo,
         "resultado": res, "r_obtenido": r, "confluencias": conf, "respeto_reglas": reglas,
         "errores": err, "conclusion": concl,
     })
-    return f"✔ guardada #{tid}"
+    return f"✔ guardada #{tid} ({modo or 'vivo'})"
 
 
 if __name__ == "__main__":

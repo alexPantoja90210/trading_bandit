@@ -75,7 +75,7 @@ def remove_symbol(sym):
 SESSIONS_UTC5 = {"London": (90, 270), "New York": (450, 630), "Tokio": (1110, 1290)}
 
 JOURNAL_FIELDS = [
-    "id", "fecha", "hora", "simbolo", "sesion", "direccion", "escenario", "tipo_orden",
+    "id", "fecha", "hora", "modo", "simbolo", "sesion", "direccion", "escenario", "tipo_orden",
     "ob_tf", "confluencias", "entrada", "sl", "tp", "riesgo_pct", "rr_plan",
     "resultado", "r_obtenido", "pnl", "respeto_reglas", "errores", "conclusion", "screenshot",
 ]
@@ -252,6 +252,7 @@ def add_trade(d):
     new = not os.path.exists(JOURNAL)
     d = dict(d)
     d.setdefault("id", _next_id())
+    d.setdefault("modo", "vivo")               # "vivo" (real) o "backtest" (replay visual)
     now = datetime.now()
     d.setdefault("fecha", now.strftime("%Y-%m-%d"))
     d.setdefault("hora", now.strftime("%H:%M"))
@@ -291,7 +292,11 @@ def stats():
         return {"n": len(rr), "winrate": round((rr > 0).mean()*100, 0),
                 "avgR": round(rr.mean(), 2), "expectancy_R": round(rr.mean(), 2),
                 "total_R": round(rr.sum(), 1)}
-    out = {"global": blk(d), "por_instrumento": {}, "por_escenario": {}, "por_sesion": {}, "por_reglas": {}}
+    out = {"global": blk(d), "por_modo": {}, "por_instrumento": {},
+           "por_escenario": {}, "por_sesion": {}, "por_reglas": {}}
+    modo = d["modo"].fillna("vivo") if "modo" in d.columns else pd.Series(["vivo"]*len(d))
+    for k, g in d.groupby(modo.astype(str)):
+        out["por_modo"][str(k)] = blk(g)
     for k, g in d.groupby(d.get("simbolo").astype(str)):
         out["por_instrumento"][str(k)] = blk(g)
     for k, g in d.groupby(d.get("escenario").astype(str)):
