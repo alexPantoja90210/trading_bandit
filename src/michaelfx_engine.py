@@ -277,7 +277,8 @@ def load_trades():
 
 
 def stats():
-    """Expectancy y desglose: global, por escenario, por sesión, por cumplimiento de reglas."""
+    """Expectancy y desglose: global, por INSTRUMENTO, escenario, sesión, cumplimiento de reglas.
+    El desglose por instrumento (recomendación del consejo) permite ver si el oro rinde distinto."""
     d = load_trades()
     d = d[pd.to_numeric(d.get("r_obtenido"), errors="coerce").notna()] if len(d) else d
     if len(d) == 0:
@@ -290,7 +291,9 @@ def stats():
         return {"n": len(rr), "winrate": round((rr > 0).mean()*100, 0),
                 "avgR": round(rr.mean(), 2), "expectancy_R": round(rr.mean(), 2),
                 "total_R": round(rr.sum(), 1)}
-    out = {"global": blk(d), "por_escenario": {}, "por_sesion": {}, "por_reglas": {}}
+    out = {"global": blk(d), "por_instrumento": {}, "por_escenario": {}, "por_sesion": {}, "por_reglas": {}}
+    for k, g in d.groupby(d.get("simbolo").astype(str)):
+        out["por_instrumento"][str(k)] = blk(g)
     for k, g in d.groupby(d.get("escenario").astype(str)):
         out["por_escenario"][f"Esc {k}"] = blk(g)
     for k, g in d.groupby(d.get("sesion").astype(str)):

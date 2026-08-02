@@ -264,6 +264,8 @@ def _render_stats(st):
                      style={"color": col, "fontSize": "13px"}),
         ], style={"border": "1px solid #eee", "borderRadius": "6px", "padding": "6px", "margin": "4px", "minWidth": "190px"})
     parts = [blk("GLOBAL", st["global"])]
+    for k, v in st.get("por_instrumento", {}).items():
+        parts.append(blk(f"📊 {k}", v))
     for k, v in st.get("por_escenario", {}).items():
         parts.append(blk(k, v))
     for k, v in st.get("por_sesion", {}).items():
