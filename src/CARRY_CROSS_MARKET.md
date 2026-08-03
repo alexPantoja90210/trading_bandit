@@ -37,6 +37,28 @@ corr(FX carry, VIX carry) = **+0.36** (moderada; ambos son primas de riesgo, co-
 **El basket mejora Sharpe Y baja DD respecto a cada carry solo** → diversificar carry entre mercados
 FUNCIONA direccionalmente, tal como predice AQR. Ninguna pata sola es un home run, pero juntas se ayudan.
 
+## Pata 3: carry CRIPTO (funding harvest) — `crypto_carry_data.py`, `crypto_carry.py`
+El bróker regala el carry en el swap de los perpetuos → probé la extensión más limpia con data de
+Binance (funding cada 8h + precio, 4+ años, 7 coins que Pepperstone ofrece: BTC/ETH/SOL/XRP/ADA/DOGE/LTC).
+Cross-seccional market-neutral: largo bottom-k funding / corto top-k, pnl=pos*(ret−funding).
+**Resultado (2022-2026): NO clasifica.**
+- Sharpe k=2 **+0.08** (x0.75 geométrico = PERDIÓ), k=3 +0.26; maxDD **−63%**.
+- **Falla nulidad (percentil 93%)**, **colapsa OOS** (TRAIN +0.13 → TEST −0.01), por año alterna salvaje
+  (2023 +0.98, 2024 −0.58, 2026 −1.42), y **muere al 2× costo** (rebalance diario = turnover alto).
+- **Por qué:** el largo-corto de perpetuos NO es market-neutral en cripto (las coins se descorrelacionan
+  en estrés → toma apuestas direccionales que explotan, de ahí el −63%).
+- **Insight de despliegue:** la versión ROBUSTA del carry cripto es el **cash-and-carry delta-neutral**
+  (largo spot + corto perp, cobrar funding sin riesgo de precio) — pero NO se arma en Pepperstone (el CFD
+  es un solo instrumento, no hay spot+perp separados). La versión desplegable (cross-seccional CFD) no pasa.
+
+## ★ CONCLUSIÓN que emerge tras 3 patas (FX, cripto) vs VIX
+Intenté generalizar la tesis del carry DOS veces (FX, cripto) y **ambas fallan nulidad + OOS**. Solo el
+**VIX carry** pasó todo. **El carry NO es genéricamente cosechable en los mercados de Pepperstone.** La prima
+de riesgo de VOLATILIDAD (VIX) es específicamente robusta; las de FX y cripto están decaídas o requieren
+estructuras delta-neutral que el bróker no da. **El VIX carry no era el primer ejemplo de una familia — es
+el caso especial que funciona.** La diversificación de carry ayuda EN TEORÍA (FX+VIX Sharpe→0.47) pero
+requiere patas que individualmente aporten, y FX/cripto no aportan solas con este rigor y estos instrumentos.
+
 ## Conclusión de Path B (honesta)
 - El carry ES un premio cross-mercado real, pero **ninguna pata sola clasifica** con nuestro rigor. El
   VIX carry sigue siendo el carry individual más fuerte (pasó nulidad/OOS/mecanismo; la FX no pasa nulidad).
