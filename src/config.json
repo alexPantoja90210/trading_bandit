@@ -96,6 +96,16 @@
     "magic": 220004,
     "sleep": 60
   },
+  "svxy": {
+    "enabled": true,
+    "dry_run": true,
+    "symbol": "SVXY.US",
+    "contango_thr": 1.0,
+    "exposure_pct": 0.30,
+    "stop_pct": 0.30,
+    "magic": 220005,
+    "sleep": 300
+  },
   "collector": {
     "enabled": true,
     "symbols": ["XAUUSD", "XAGUSD", "BTCUSD", "ETHUSD", "US500", "NAS100", "GER40", "EURUSD", "WTOIL-PERP"],

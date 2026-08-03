@@ -11,7 +11,7 @@ New-Item -ItemType Directory -Force -Path $logs | Out-Null
 # Orden: dashboard, bandit (solo-aprende), las 3 estrategias, y el pipeline meta.
 $scripts = @(
   "dashboard.py", "main_live_v2.py",
-  "rsi2_live.py", "intraday_live.py", "stf_live.py",
+  "rsi2_live.py", "intraday_live.py", "stf_live.py", "svxy_live.py",
   "learning_collector.py", "meta_observer.py", "meta_retrain.py",
   "data_backup.py", "michaelfx_cockpit.py"
 )
