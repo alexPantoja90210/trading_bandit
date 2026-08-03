@@ -106,3 +106,15 @@ Cierre del círculo: corrí la estrategia sobre `SVXY.US` **de Pepperstone** (8.
 - **Expectativa realista desplegable:** sleeve positivo, descorrelacionado y diversificante, pero **modesto**
   (Sharpe ~0.4 en el régimen reciente), no un home run. Su valor es de CARTERA (baja DD, no correlaciona),
   no de retorno standalone. Coherente con el estándar del proyecto: sobrevive, pero sin inflar el número.
+
+## APORTE A LA CARTERA — número HONESTO en ventana bróker (2026-08-03) — `svxy_portfolio_broker.py`
+Rehíce el aporte de cartera con SVXY.US del bróker y recortado a 2018-2026 (no el VIXY 2011+ optimista).
+- **Correlaciones se mantienen bajas:** VIXcarry~STF +0.01, ~RSI2 +0.09, y en ESTRÉS (VIX>25, n=369) **−0.04**.
+  La propiedad diversificante SOBREVIVE en la ventana honesta. STF~RSI2 +0.02.
+- **Equal-weight 1/3 (3-way):** Sharpe ~flat (2-way 0.93→3-way 0.94) pero **DD −12.5%→−10.2%**.
+- **Barrido de peso (overlay sobre el 2-way) — el hallazgo accionable:** el equal-weight sobre-asigna.
+  El punto dulce es **~15-20% de peso**: Sharpe **0.93→0.98** (MEJORA) y DD **−12.5%→−11.0%**. A 30% aún
+  baja DD pero empieza a diluir Sharpe (0.96); a 50% lo daña (0.81). → **asignarle ~15-20% del riesgo de
+  cartera, no 1/3.** A ese peso MEJORA Sharpe Y baja DD, honestamente, sobre el instrumento y período reales.
+- **Nota de sizing:** el `exposure_pct=0.30` del ejecutor controla la vol PROPIA del sleeve (domar su −38%
+  a ~−11%); el "peso 15-20%" es cuánto CAPITAL/riesgo darle al ejecutor SVXY vs RSI2/STF. Son cosas distintas.
