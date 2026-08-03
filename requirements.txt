@@ -2,6 +2,10 @@ pandas
 numpy
 MetaTrader5
 plotly
+dash
 psutil
 pytest
 python-json-logger
+matplotlib
+pypdf
+pymupdf
