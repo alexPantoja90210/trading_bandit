@@ -45,3 +45,14 @@ Robustez: 12/16 años con Sharpe+; negativos 2018/2022/2024/2026. Sobrevive cost
 
 *Honestidad:* es lo primero que pasa "hecho bien", pero NO es para operar aún — es alto riesgo de
 cola que exige gestión seria. El hallazgo clave: **la curva de futuros es el input nuevo que faltaba.**
+
+## DOMADO + DIVERSIFICACIÓN (2026-08-03) — `vix_carry_managed.py`, `vix_carry_portfolio.py`
+**Domar (opción 1):** los overlays "inteligentes" (filtro de nivel VIX, vol-targeting) FALLARON
+(bajan el Sharpe — la term structure ya captura el régimen). Lo único que doma es **dimensionar chico
+(fracción fija)**: el Sharpe es invariante a escala. Sized 30%: **Sharpe 0.67, +13%/año, maxDD −23%,
+peor día −10%**, tail sobrevivible (feb-2018 −2.9%, COVID 0%). Sleeve real y sobrevivible.
+**Diversificación (lo que decide si vale):** correlación diaria vs STF **+0.01**, vs RSI2 **+0.10** —
+casi independiente. Agregarlo a la cartera: **2-way (STF+RSI2) Sharpe 1.03/DD−14% → 3-way (+VIXcarry)
+Sharpe 1.18/DD−10%.** Mejora Sharpe Y baja DD. **Primer input nuevo que además MEJORA la cartera validada.**
+Caveat: co-movimiento de COLA (RSI2 y VIXcarry sufren juntos en crash → la diversificación se comprime
+en crisis, la corr media +0.10 lo subestima). Despliegue: necesita feed VIX3M en vivo + shortear VIXY.
