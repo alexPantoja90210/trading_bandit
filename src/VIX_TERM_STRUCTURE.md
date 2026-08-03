@@ -56,3 +56,22 @@ casi independiente. Agregarlo a la cartera: **2-way (STF+RSI2) Sharpe 1.03/DD−
 Sharpe 1.18/DD−10%.** Mejora Sharpe Y baja DD. **Primer input nuevo que además MEJORA la cartera validada.**
 Caveat: co-movimiento de COLA (RSI2 y VIXcarry sufren juntos en crash → la diversificación se comprime
 en crisis, la corr media +0.10 lo subestima). Despliegue: necesita feed VIX3M en vivo + shortear VIXY.
+
+## ROBUSTEZ (2026-08-03) — `vix_carry_robust.py` — SOBREVIVE el rigor que mató al ORB
+Cinco pruebas, todas **pasadas**:
+1. **Umbral NO es knife-edge:** Sharpe positivo en TODOS los cortes de contango — TS<0.90 (+0.47),
+   <0.95 (+0.48), <1.0 (+0.67), <1.05 (+0.69). Monótono y estable, no un punto frágil.
+2. **Split OOS 60/40:** TRAIN Sharpe **+0.69** vs TEST Sharpe **+0.65** — casi idénticos. (Contraste:
+   el ORB colapsó +1.37→−0.25 OOS. Esto NO colapsa.)
+3. **MECANISMO confirmado (es el roll, no curve-fit):** E[retorno de VIXY | contango] = **−51%/año**
+   (decae) vs | backwardation] = **+52%/año** (dispara). El edge ES la decadencia estructural del roll.
+4. **Cross-check en OTRO ETF (SVXY, inverso, construcción distinta, cambió de −1x a −0.5x en 2018):**
+   Sharpe **+0.64**, mismo signo y magnitud. → NO es artefacto de la data de VIXY.
+5. **Correlación de COLA — el caveat se REFUTA:** corr con RSI2 todos los días +0.10, pero en días de
+   ESTRÉS (VIX>25 o S&P<−1.5%, n=623) = **−0.05**. La diversificación NO se comprime en crisis; se
+   MANTIENE, porque la señal timed sale a cash (backwardation) justo cuando RSI2 compra el dip.
+
+**Veredicto de robustez:** el VIX carry es el **primer edge del proyecto que sobrevive OOS + mecanismo
++ cross-check + cola**. Es real, estructural y diversificante. Únicos pendientes ya NO son de validación
+sino de **despliegue**: (a) feed de VIX3M en vivo, (b) shortear VIXY/comprar SVXY en CFD (verificar
+disponibilidad y borrow en Pepperstone), (c) sizing fijo ~30% del sleeve.
