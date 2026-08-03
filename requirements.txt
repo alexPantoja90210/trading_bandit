@@ -9,3 +9,4 @@ python-json-logger
 matplotlib
 pypdf
 pymupdf
+yfinance
