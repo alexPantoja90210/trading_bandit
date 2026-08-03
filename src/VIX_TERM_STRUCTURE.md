@@ -89,5 +89,20 @@ Revisé los símbolos del bróker (demo 61566435). Instrumentos de volatilidad: 
   PEOR (spot VIX x6.8 en COVID vs VIXY x4). Sería otra estrategia; requeriría su propia validación. No usar.
 
 **Plan de despliegue concreto:** ejecutor `LARGO SVXY.US` cuando TS=VIX/VIX3M de ayer <1 (contango), plano
-en backwardation, sizing fijo 30% del sleeve. Único input externo: **VIX3M diario de yfinance** (el bróker
-tiene VIX pero no VIX3M) — un fetch al cierre para calcular TS. Instrumento y validación: resueltos.
+en backwardation, sizing fijo 30% del sleeve. Input externo de la señal: **VIX3M diario de CBOE** (CSV oficial;
+yfinance ^VIX3M va semanas retrasado → solo respaldo). Ejecutor: `svxy_live.py` (magic 220005, dry-run).
+
+## VALIDACIÓN EN DATA REAL DEL BRÓKER (2026-08-03) — `svxy_broker_validate.py`
+Cierre del círculo: corrí la estrategia sobre `SVXY.US` **de Pepperstone** (8.3 años, 2018-04→2026-07), no yfinance.
+- **Tracking:** corr(SVXY bróker, SVXY yfinance) = **+0.988**, vol diaria 2.32% vs 2.33% → **es el mismo
+  instrumento**, sin divergencia ni artefacto de data del ETF.
+- **Estrategia en el instrumento real (2018-2026, sin escalar):** Sharpe **+0.38**, +12.6%/año, maxDD −38%
+  — casi idéntico a yfinance en la misma ventana (+0.39). **El edge se sostiene en lo que de verdad operamos.**
+- **HONESTIDAD (recalibración):** este +0.38 es MÁS BAJO que el +0.67/+0.64 de titular porque (a) el bróker
+  NO tiene data pre-2018 → esta es solo la ventana reciente y dura (arranca en Volmageddon), y (b) SVXY es
+  −0.5x desde 2018 (media exposición). El +0.67 venía de VIXY con historia completa 2011-2026. Por año: 5
+  positivos / 4 negativos (2023 +1.91 pero 2018 −0.80, 2022 −0.43, 2026 −0.42) → real pero GRUMOSO: te pagan
+  por cargar riesgo de crash y algunos años la "tasa del crash" domina. Sized 30% el DD baja a ~−11%.
+- **Expectativa realista desplegable:** sleeve positivo, descorrelacionado y diversificante, pero **modesto**
+  (Sharpe ~0.4 en el régimen reciente), no un home run. Su valor es de CARTERA (baja DD, no correlaciona),
+  no de retorno standalone. Coherente con el estándar del proyecto: sobrevive, pero sin inflar el número.
