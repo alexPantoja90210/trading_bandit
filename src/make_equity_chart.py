@@ -54,20 +54,21 @@ def main():
     ax.axhline(0, color="#dcdfe3", lw=0.8)
     ax.grid(True, color="#eef0f2", lw=0.8)
     ax.set_axisbelow(True)
-    ax.set_title("Combined edge portfolio — Trend + Mean-Reversion (vol-targeted 10%)",
-                 fontsize=13, color="#1a1c22", fontweight="bold", pad=12, loc="left")
-    ax.text(0.0, 1.015, f"{start.year}–{end.year} · daily correlation +0.01 · out-of-sample walk-forward validated",
-            transform=ax.transAxes, fontsize=9, color=gray)
     ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}%"))
     ax.set_ylabel("Cumulative return (vol-targeted units)", fontsize=9, color="#4a4d55")
     ax.legend(loc="upper left", frameon=False, fontsize=9.5)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    fig.text(0.99, 0.01, "Backtest — not a promise of future returns · A. Pantoja",
+    fig.text(0.985, 0.02, "Backtest — not a promise of future returns · A. Pantoja",
              ha="right", fontsize=7.5, color=gray)
-    fig.tight_layout()
+    # titulo + subtitulo como texto de figura, con separacion clara (sin encimarse)
+    fig.subplots_adjust(top=0.85, bottom=0.12, left=0.075, right=0.97)
+    fig.text(0.075, 0.955, "Combined edge portfolio — Trend + Mean-Reversion (vol-targeted 10%)",
+             fontsize=13.5, fontweight="bold", color="#1a1c22", ha="left", va="top")
+    fig.text(0.075, 0.905, f"{start.year}–{end.year}  ·  daily correlation +0.01  ·  out-of-sample walk-forward validated",
+             fontsize=9, color=gray, ha="left", va="top")
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    fig.savefig(OUT, bbox_inches="tight", facecolor="white")
+    fig.savefig(OUT, facecolor="white", dpi=150)
     print(f"OK -> {os.path.abspath(OUT)}")
     print(f"Sharpe cartera {sh_c:.2f} · DD {dd_c:.1f}%  (STF {sh_s:.2f}/{dd_s:.0f}% · RSI2 {sh_r:.2f}/{dd_r:.0f}%)")
 
