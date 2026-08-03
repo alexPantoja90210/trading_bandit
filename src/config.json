@@ -98,7 +98,7 @@
   },
   "svxy": {
     "enabled": true,
-    "dry_run": true,
+    "dry_run": false,
     "symbol": "SVXY.US",
     "contango_thr": 1.0,
     "exposure_pct": 0.30,

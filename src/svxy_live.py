@@ -181,6 +181,17 @@ def get_signal(cfg_s, state):
 # ----------------------------------------------------------------------------
 # broker: posición / apertura / cierre (LARGO SVXY)
 # ----------------------------------------------------------------------------
+def _filling(info):
+    """Elige el modo de llenado que el símbolo soporta (FOK/IOC/Return).
+    Los CFD de acciones/ETF (SVXY.US) suelen ser FOK-only; los índices, IOC."""
+    fm = getattr(info, "filling_mode", 0)
+    if fm & 1:
+        return mt5.ORDER_FILLING_FOK
+    if fm & 2:
+        return mt5.ORDER_FILLING_IOC
+    return mt5.ORDER_FILLING_RETURN
+
+
 def get_position(symbol, magic):
     positions = mt5.positions_get(symbol=symbol)
     if not positions:
@@ -229,7 +240,7 @@ def open_long(symbol, cfg_s, dry_run):
         "action": mt5.TRADE_ACTION_DEAL, "symbol": symbol, "volume": lot,
         "type": mt5.ORDER_TYPE_BUY, "price": round(price, digits), "sl": sl,
         "deviation": 15, "magic": cfg_s["magic"], "comment": "svxy_live",
-        "type_filling": mt5.ORDER_FILLING_IOC, "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": _filling(info), "type_time": mt5.ORDER_TIME_GTC,
     }
     res = mt5.order_send(req)
     if res is None or res.retcode != mt5.TRADE_RETCODE_DONE:
@@ -250,7 +261,7 @@ def close_long(position, dry_run):
         "volume": position.volume, "type": mt5.ORDER_TYPE_SELL,
         "position": position.ticket, "price": round(price, info.digits),
         "deviation": 15, "magic": position.magic, "comment": "svxy_exit",
-        "type_filling": mt5.ORDER_FILLING_IOC, "type_time": mt5.ORDER_TIME_GTC,
+        "type_filling": _filling(info), "type_time": mt5.ORDER_TIME_GTC,
     }
     res = mt5.order_send(req)
     if res is None or res.retcode != mt5.TRADE_RETCODE_DONE:

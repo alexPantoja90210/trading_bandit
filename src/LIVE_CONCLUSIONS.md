@@ -227,3 +227,14 @@ flat al cierre.
   RSI2/STF positivos) el ORB NAS100 da OOS −0.25 → se descarta como candidato de despliegue. Mismo juez
   que hundió a las SMC (PF 4.7→0.85). Scalping literal ya estaba descartado por infra. Aprendizaje: la
   validación OOS (barata) evitó un forward-test de semanas sobre una señal ya muerta en el período reciente.
+
+## 2026-08-03 — VIX carry (svxy_live) pasa a VIVO-DEMO
+Acción autónoma (autorizada, demo): puse `svxy.dry_run=false`. El ejecutor colocó la PRIMERA orden real
+en demo: LARGO **SVXY.US** 51.1 lots @ $58.38, SL $40.87, ticket 352302848, magic 220005, señal TS=0.841
+(contango). Cuenta 61566435 Pepperstone-Demo verificada por el candado.
+- **Bug de despliegue cazado y arreglado:** SVXY.US (CFD de ETF) es **FOK-only** (no soporta IOC como los
+  índices) → 1er intento dio retcode 10030 (llenado inválido). Se hizo el modo de llenado adaptativo
+  (`_filling()` según `symbol_info.filling_mode`). 2do intento OK.
+- **Cómo se mide:** es estrategia de POSICIÓN (hold) → hará pocos trades cerrados; se mide por curva de
+  retorno/mark-to-market, no por PF sobre N trades. Sale (EXIT) cuando la curva pase a backwardation (TS>=1).
+- Sizing fijo 30% del balance como nocional; stop de desastre ancho 30% solo como red ante gap.
