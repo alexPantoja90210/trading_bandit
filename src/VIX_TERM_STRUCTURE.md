@@ -75,3 +75,19 @@ Cinco pruebas, todas **pasadas**:
 + cross-check + cola**. Es real, estructural y diversificante. Únicos pendientes ya NO son de validación
 sino de **despliegue**: (a) feed de VIX3M en vivo, (b) shortear VIXY/comprar SVXY en CFD (verificar
 disponibilidad y borrow en Pepperstone), (c) sizing fijo ~30% del sleeve.
+
+## DISPONIBILIDAD EN PEPPERSTONE (2026-08-03) — el instrumento resuelto
+Revisé los símbolos del bróker (demo 61566435). Instrumentos de volatilidad: **VIX**, **VIXY.US**, **SVXY.US**.
+- **VIXY.US = LONGONLY** (trade_mode=1) → **NO se puede shortear**. Mata la implementación "short VIXY".
+  (Normal: los ETF apalancados/inversos suelen estar restringidos a largo.)
+- **SVXY.US = LONGONLY** → pero SVXY es el ETF INVERSO, así que **LARGO SVXY = short-vol** = justo lo que
+  queremos. Es exactamente la versión que ya validé en el cross-check #4 (Sharpe +0.64). Cotiza con volumen
+  real (~12-18k/día, ~$57, "All Sessions"). swap_long ~−6%/año (financiamiento, cubierto por el costo 3bps/día
+  del backtest que sobrevive 3×). **→ SVXY.US LARGO es el instrumente desplegable y validado.**
+- **VIX (índice) = FULL** (se puede shortear, swap_short POSITIVO +3.08 = te pagan el carry). PERO rastrea
+  el VIX SPOT (revierte a la media ~15-20), NO el roll de la curva → no replica el backtest y su cola es
+  PEOR (spot VIX x6.8 en COVID vs VIXY x4). Sería otra estrategia; requeriría su propia validación. No usar.
+
+**Plan de despliegue concreto:** ejecutor `LARGO SVXY.US` cuando TS=VIX/VIX3M de ayer <1 (contango), plano
+en backwardation, sizing fijo 30% del sleeve. Único input externo: **VIX3M diario de yfinance** (el bróker
+tiene VIX pero no VIX3M) — un fetch al cierre para calcular TS. Instrumento y validación: resueltos.
